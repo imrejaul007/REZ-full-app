@@ -61,7 +61,7 @@ CORPPERKS_ENABLED=true
 ```env
 # GST Service
 GST_SERVICE_ENABLED=true
-GST_API_KEY=your_gst_api_key
+GST_API_KEY=YOUR_KEY_HERE
 GST_EINVOICE_URL=https://einvoice.gst.gov.in
 GST_EINVOICE_USER=your_username
 GST_EINVOICE_PASSWORD=your_password
@@ -71,7 +71,7 @@ GST_EINVOICE_PASSWORD=your_password
 ```env
 PORT=4011
 MAKCORPS_API_URL=https://api.makcorps.com
-MAKCORPS_API_KEY=your_makcorps_key
+MAKCORPS_API_KEY=YOUR_KEY_HERE
 MAKCORPS_CLIENT_ID=your_client_id
 MAKCORPS_CLIENT_SECRET=your_client_secret
 ```
@@ -80,7 +80,7 @@ MAKCORPS_CLIENT_SECRET=your_client_secret
 ```env
 PORT=4012
 NEXTABIZZ_API_URL=https://api.nextabizz.com
-NEXTABIZZ_API_KEY=your_api_key
+NEXTABIZZ_API_KEY=YOUR_KEY_HERE
 NEXTABIZZ_CLIENT_ID=your_client_id
 NEXTABIZZ_CLIENT_SECRET=your_client_secret
 ```
@@ -94,7 +94,7 @@ SMTP_USER=notifications@company.com
 SMTP_PASS=app_password
 
 # SMS (MSG91)
-SMS_API_KEY=your_msg91_key
+SMS_API_KEY=YOUR_KEY_HERE
 SMS_SENDER_ID=REZPTS
 
 # Firebase (Push)
@@ -147,7 +147,7 @@ services:
       - "4011:4011"
     environment:
       - MAKCORPS_API_URL=https://api.makcorps.com
-      - MAKCORPS_API_KEY=${MAKCORPS_API_KEY}
+      - MAKCORPS_API_KEY=YOUR_KEY_HERE
     depends_on:
       - rez-wallet-service
 
@@ -157,7 +157,7 @@ services:
       - "4012:4012"
     environment:
       - NEXTABIZZ_API_URL=https://api.nextabizz.com
-      - NEXTABIZZ_API_KEY=${NEXTABIZZ_API_KEY}
+      - NEXTABIZZ_API_KEY=YOUR_KEY_HERE
     depends_on:
       - rez-wallet-service
 

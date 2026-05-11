@@ -177,8 +177,8 @@ RAZORPAY_KEY_ID=rzp_test_xxx
 RAZORPAY_KEY_SECRET=xxx
 
 # AI Services
-OPENAI_API_KEY=sk-xxx
-ANTHROPIC_API_KEY=sk-ant-xxx
+OPENAI_API_KEY=YOUR_KEY_HERE
+ANTHROPIC_API_KEY=YOUR_KEY_HERE
 
 # Services
 INTENT_GRAPH_URL=https://rez-intent-graph.onrender.com

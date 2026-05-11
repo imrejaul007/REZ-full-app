@@ -11,7 +11,7 @@
 ### 2. Set Environment Variable
 
 ```bash
-export RENDER_API_KEY=your_api_key_here
+export RENDER_API_KEY=YOUR_KEY_HERE
 ```
 
 ### 3. Deploy Services
