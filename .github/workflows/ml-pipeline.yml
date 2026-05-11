@@ -1,0 +1,385 @@
+name: ML Training Pipeline
+
+on:
+  push:
+    paths:
+      - 'ml/**'
+      - 'scripts/train.py'
+      - 'scripts/evaluate.py'
+      - 'scripts/pull_training_data.py'
+      - 'scripts/register_model.py'
+  schedule:
+    - cron: '0 2 * * *'  # Daily training at 2 AM UTC
+  workflow_dispatch:
+    inputs:
+      model_name:
+        description: 'Model name to train'
+        required: true
+        default: 'intent-classifier'
+      epochs:
+        description: 'Number of training epochs'
+        required: false
+        default: '100'
+      batch_size:
+        description: 'Training batch size'
+        required: false
+        default: '32'
+
+env:
+  PYTHON_VERSION: '3.11'
+  CUDA_VERSION: '12.1'
+  MODEL_REGISTRY_PATH: 'gs://rez-ml-models'
+  DATA_BUCKET: 'gs://rez-training-data'
+  STAGING_CLUSTER: 'rez-ml-staging'
+  PRODUCTION_CLUSTER: 'rez-ml-production'
+
+jobs:
+  # =============================================================================
+  # Job 1: Data Validation
+  # =============================================================================
+  validate-data:
+    runs-on: gpu-runner
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          pip install -q google-cloud-storage pandas pyarrow pyyaml jsonschema
+
+      - name: Validate training data schema
+        run: |
+          python scripts/validate_data_schema.py --strict
+
+      - name: Check data drift
+        run: |
+          python scripts/check_data_drift.py --threshold 0.05
+
+      - name: Report data stats
+        if: always()
+        run: |
+          python scripts/report_data_stats.py --output artifact
+
+      artifacts:
+        name: data-validation-report
+        path: reports/data-validation-*.json
+        retention-days: 7
+
+  # =============================================================================
+  # Job 2: Training
+  # =============================================================================
+  train:
+    needs: validate-data
+    runs-on: gpu-runner
+    timeout-minutes: 480  # 8 hours max
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cache model checkpoints
+        uses: actions/cache@v4
+        with:
+          path: /tmp/checkpoints
+          key: ${{ runner.os }}-checkpoints-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-checkpoints-
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Pull training data
+        run: |
+          python scripts/pull_training_data.py \
+            --source ${{ env.DATA_BUCKET }} \
+            --dest /tmp/training-data \
+            --split train,val,test
+
+      - name: Log experiment start
+        run: |
+          python ml/experiment-tracking.py log-start \
+            --experiment-id "${{ github.sha }}" \
+            --config ml/config/training.yaml \
+            --git-commit ${{ github.sha }}
+
+      - name: Train model
+        run: |
+          python scripts/train.py \
+            --model ${{ github.event.inputs.model_name || 'intent-classifier' }} \
+            --epochs ${{ github.event.inputs.epochs || 100 }} \
+            --batch-size ${{ github.event.inputs.batch_size || 32 }} \
+            --data-dir /tmp/training-data \
+            --checkpoint-dir /tmp/checkpoints \
+            --experiment-id ${{ github.sha }} \
+            --tensorboard-dir /tmp/tensorboard
+
+      - name: Upload TensorBoard logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tensorboard-logs-${{ github.sha }}
+          path: /tmp/tensorboard
+          retention-days: 14
+
+      - name: Save model artifacts
+        if: always()
+        run: |
+          gsutil -m cp -r /tmp/checkpoints/* ${{ env.MODEL_REGISTRY_PATH }}/checkpoints/${{ github.sha }}/
+
+      artifacts:
+        name: training-checkpoints
+        path: /tmp/checkpoints
+        retention-days: 3
+
+  # =============================================================================
+  # Job 3: Evaluation
+  # =============================================================================
+  evaluate:
+    needs: train
+    runs-on: gpu-runner
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Download training artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: training-checkpoints
+          path: /tmp/checkpoints
+
+      - name: Pull test data
+        run: |
+          gsutil -m cp -r ${{ env.DATA_BUCKET }}/test/* /tmp/test-data/
+
+      - name: Run evaluation
+        run: |
+          python scripts/evaluate.py \
+            --model-path /tmp/checkpoints/best_model.pt \
+            --test-data /tmp/test-data \
+            --threshold 0.85 \
+            --output-dir /tmp/eval-results \
+            --experiment-id ${{ github.sha }}
+
+      - name: Check threshold
+        id: threshold-check
+        run: |
+          threshold_met=$(python scripts/check_threshold.py \
+            --metrics /tmp/eval-results/metrics.json \
+            --threshold 0.85)
+          echo "threshold_met=$threshold_met" >> $GITHUB_OUTPUT
+
+      - name: Upload evaluation results
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-results-${{ github.sha }}
+          path: /tmp/eval-results
+          retention-days: 30
+
+      - name: Log experiment end
+        run: |
+          python ml/experiment-tracking.py log-end \
+            --experiment-id ${{ github.sha }} \
+            --metrics /tmp/eval-results/metrics.json
+
+  # =============================================================================
+  # Job 4: Model Registration (only if evaluation passes)
+  # =============================================================================
+  register-model:
+    needs: evaluate
+    runs-on: ubuntu-latest
+    if: needs.evaluate.outputs.threshold_met == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Download training artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: training-checkpoints
+          path: /tmp/checkpoints
+
+      - name: Register model
+        run: |
+          python scripts/register_model.py \
+            --model ${{ github.event.inputs.model_name || 'intent-classifier' }} \
+            --version ${{ github.sha }} \
+            --model-path /tmp/checkpoints/best_model.pt \
+            --metrics /tmp/eval-results/metrics.json \
+            --registry ${{ env.MODEL_REGISTRY_PATH }}
+
+  # =============================================================================
+  # Job 5: Deploy to Staging
+  # =============================================================================
+  deploy-staging:
+    needs: register-model
+    runs-on: ubuntu-latest
+    if: github.ref == 'develop'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure kubectl for staging
+        run: |
+          gcloud container clusters get-credentials ${{ env.STAGING_CLUSTER }} \
+            --region us-central1 \
+            --project ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Deploy to staging
+        run: |
+          kubectl set image deployment/ml-serving \
+            intent=${{ env.MODEL_REGISTRY_PATH }}/models/intent-classifier:${{ github.sha }} \
+            --namespace ml-staging
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/ml-serving \
+            --namespace ml-staging \
+            --timeout=10m
+
+      - name: Run smoke tests
+        run: |
+          python scripts/smoke_test.py \
+            --endpoint https://staging-ml.rez.ai/predict \
+            --model intent-classifier:${{ github.sha }}
+
+      - name: Notify staging deployment
+        run: |
+          python scripts/notify-slack.py \
+            --channel ml-alerts \
+            --message "Staging deployed: intent-classifier:${{ github.sha }}" \
+            --level info
+
+  # =============================================================================
+  # Job 6: Deploy to Production
+  # =============================================================================
+  deploy-production:
+    needs: register-model
+    runs-on: ubuntu-latest
+    if: github.ref == 'main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure kubectl for production
+        run: |
+          gcloud container clusters get-credentials ${{ env.PRODUCTION_CLUSTER }} \
+            --region us-east1 \
+            --project ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Deploy to production
+        run: |
+          kubectl set image deployment/ml-serving \
+            intent=${{ env.MODEL_REGISTRY_PATH }}/models/intent-classifier:${{ github.sha }} \
+            --namespace ml-production
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/ml-serving \
+            --namespace ml-production \
+            --timeout=15m
+
+      - name: Run smoke tests
+        run: |
+          python scripts/smoke_test.py \
+            --endpoint https://ml.rez.ai/predict \
+            --model intent-classifier:${{ github.sha }}
+
+      - name: Run integration tests
+        run: |
+          python scripts/integration_test.py \
+            --model intent-classifier:${{ github.sha }} \
+            --test-suite production
+
+      - name: Notify production deployment
+        run: |
+          python scripts/notify-slack.py \
+            --channel ml-alerts \
+            --message "Production deployed: intent-classifier:${{ github.sha }}" \
+            --level success
+
+  # =============================================================================
+  # Job 7: Cleanup
+  # =============================================================================
+  cleanup:
+    needs: [deploy-staging, deploy-production]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Clean up old checkpoints
+        if: always()
+        run: |
+          python scripts/cleanup_old_models.py \
+            --registry ${{ env.MODEL_REGISTRY_PATH }} \
+            --keep-versions 10 \
+            --min-age-days 30
+
+      - name: Clean up temp artifacts
+        if: always()
+        run: |
+          gsutil -m rm -rf gs://rez-ml-artifacts/temp/${{ github.sha }}/

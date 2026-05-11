@@ -1,0 +1,18 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test
+      - name: Deploy
+        run: |
+          curl -X POST https://api.render.com/v1/services/$SERVICE_ID/deploys
+          -d branch=develop

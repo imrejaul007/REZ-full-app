@@ -1,0 +1,30 @@
+# ============================================================
+# MongoDB Backup Cron Configuration
+# ============================================================
+# Install instructions:
+#   1. Copy this file to /etc/cron.d/mongodb-backup
+#   2. Or add entries to crontab: crontab -e
+#   3. Ensure MONGODB_URI is exported or in /etc/environment
+# ============================================================
+
+# MongoDB backups - daily at 2 AM
+0 2 * * * root /scripts/mongodb-backup.sh >> /var/log/mongodb-backup.log 2>&1
+
+# MongoDB backups - every 6 hours for high-frequency data
+0 */6 * * * root /scripts/mongodb-backup.sh >> /var/log/mongodb-backup.log 2>&1
+
+# Weekly full backup - Sunday at 3 AM (keeps for 90 days)
+0 3 * * 0 root MONGODB_URI=${MONGODB_URI} RETENTION_DAYS=90 /scripts/mongodb-backup.sh >> /var/log/mongodb-backup-weekly.log 2>&1
+
+# Verify backups - daily at 6 AM
+0 6 * * * root /scripts/mongodb-backup-verify.sh >> /var/log/mongodb-backup-verify.log 2>&1
+
+# ============================================================
+# Environment Variables Required
+# ============================================================
+# Export in /etc/environment or set in container:
+#   MONGODB_URI=mongodb://user:pass@host:27017
+#   S3_BUCKET=your-backup-bucket
+#   S3_PREFIX=mongodb
+#   RETENTION_DAYS=30
+# ============================================================

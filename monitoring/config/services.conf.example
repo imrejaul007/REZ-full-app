@@ -1,0 +1,33 @@
+# =============================================================================
+# Service Configuration
+# =============================================================================
+# Add your service health endpoints here
+# Format: SERVICE_NAME=http://host:port/health_endpoint
+# =============================================================================
+
+# Example services - uncomment and configure as needed
+
+# API Gateway
+# api_gateway=http://localhost:3000/health
+
+# Authentication Service
+# auth_service=http://localhost:3001/health
+
+# Intent Graph Service
+# intent_service=http://localhost:3002/health
+
+# Ledger Service
+# ledger_service=http://localhost:3003/health
+
+# Automation Service
+# automation_service=http://localhost:3004/health
+
+# Media Service
+# media_service=http://localhost:3005/health
+
+# Web Frontend
+# web_frontend=http://localhost:8080/health
+
+# Database (port check)
+# postgres_db=postgres://localhost:5432
+# redis_cache=redis://localhost:6379

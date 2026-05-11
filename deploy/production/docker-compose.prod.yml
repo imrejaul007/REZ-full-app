@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  # MongoDB Cluster
+  mongodb-primary:
+    image: mongo:7.0
+    container_name: rez-prod-mongo-primary
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_primary_data:/data/db
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb-secondary1:
+    image: mongo:7.0
+    container_name: rez-prod-mongo-secondary1
+    restart: always
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    depends_on:
+      - mongodb-primary
+
+  mongodb-secondary2:
+    image: mongo:7.0
+    container_name: rez-prod-mongo-secondary2
+    restart: always
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    depends_on:
+      - mongodb-primary
+
+  # Redis Cluster
+  redis-primary:
+    image: redis:7-alpine
+    container_name: rez-prod-redis-primary
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # Services (add ALL new services)
+  analytics-v2:
+    image: rez/analytics-v2:latest
+    restart: always
+    ports:
+      - "3010:3010"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb-primary:27017/rez_prod_analytics
+      - REDIS_URL=redis://redis-primary:6379
+    depends_on:
+      - mongodb-primary
+
+  staff-service:
+    image: rez/staff-service:latest
+    restart: always
+    ports:
+      - "3011:3011"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb-primary:27017/rez_prod_staff
+    depends_on:
+      - mongodb-primary
+
+  delivery-service:
+    image: rez/delivery-service:latest
+    restart: always
+    ports:
+      - "3012:3012"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb-primary:27017/rez_prod_delivery
+      - REDIS_URL=redis://redis-primary:6379
+    depends_on:
+      - mongodb-primary
+
+  capital-service:
+    image: rez/capital-service:latest
+    restart: always
+    ports:
+      - "3013:3013"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb-primary:27017/rez_prod_capital
+    depends_on:
+      - mongodb-primary
+
+  corpperks-service:
+    image: rez/corpperks-service:latest
+    restart: always
+    ports:
+      - "3014:3014"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb-primary:27017/rez_prod_corpperks
+    depends_on:
+      - mongodb-primary
+
+  # Add existing services...
+  merchant-service:
+    image: rez/merchant-service:latest
+    restart: always
+    ports:
+      - "4005:4005"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb-primary:27017/rez_prod
+      - REDIS_URL=redis://redis-primary:6379
+
+  order-service:
+    image: rez/order-service:latest
+    restart: always
+    ports:
+      - "4012:4012"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb-primary:27017/rez_prod_orders
+      - REDIS_URL=redis://redis-primary:6379
+
+  payment-service:
+    image: rez/payment-service:latest
+    restart: always
+    ports:
+      - "4008:4008"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb-primary:27017/rez_prod_payments
+      - REDIS_URL=redis://redis-primary:6379
+
+volumes:
+  mongo_primary_data:
+  redis_data:
+
+networks:
+  default:
+    name: rez-prod-network

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReZ Services Status</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    h1 { color: #333; }
+    .service { display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid #eee; }
+    .status { padding: 5px 12px; border-radius: 4px; font-weight: bold; }
+    .status.ok { background: #4caf50; color: white; }
+    .status.degraded { background: #ff9800; color: white; }
+    .status.down { background: #f44336; color: white; }
+    .updated { color: #666; font-size: 14px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ReZ Services Status</h1>
+    <div class="service">
+      <span>Analytics Service</span>
+      <span class="status ok">Operational</span>
+    </div>
+    <div class="service">
+      <span>Staff Service</span>
+      <span class="status ok">Operational</span>
+    </div>
+    <div class="service">
+      <span>Delivery Service</span>
+      <span class="status ok">Operational</span>
+    </div>
+    <div class="service">
+      <span>Capital Service</span>
+      <span class="status ok">Operational</span>
+    </div>
+    <p class="updated">Last updated: <span id="timestamp"></span></p>
+  </div>
+  <script>
+    document.getElementById('timestamp').textContent = new Date().toLocaleString();
+  </script>
+</body>
+</html>

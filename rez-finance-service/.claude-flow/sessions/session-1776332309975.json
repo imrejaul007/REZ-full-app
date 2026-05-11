@@ -1,0 +1,14 @@
+{
+  "id": "session-1776332309975",
+  "startedAt": "2026-04-16T09:38:29.975Z",
+  "cwd": "/Users/rejaulkarim/Documents/ReZ Full App/rez-finance-service",
+  "context": {},
+  "metrics": {
+    "edits": 18,
+    "commands": 0,
+    "tasks": 0,
+    "errors": 0
+  },
+  "endedAt": "2026-04-17T18:26:48.072Z",
+  "duration": 118098098
+}

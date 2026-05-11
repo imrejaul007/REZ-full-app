@@ -1,0 +1,21 @@
+# Render Blueprint - Auto-deploys to Render.com
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: rez-billing-system
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: FRAUD_THRESHOLD
+        value: 0.85
+      - key: MAX_DAILY_TRANSACTIONS
+        value: 1000

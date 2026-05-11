@@ -1,0 +1,137 @@
+# Promtail Configuration for REZ Ecosystem
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /var/log/positions.yaml
+  sync_period: 10s
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # ─── REZ API Logs ────────────────────────────────────────────────────────
+  - job_name: rez-api
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: rez-api
+          __path__: /var/log/rez/api/*.log
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            message: message
+            service: service
+      - labels:
+          level:
+          service:
+
+  # ─── REZ Worker Logs ─────────────────────────────────────────────────────
+  - job_name: rez-worker
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: rez-worker
+          __path__: /var/log/rez/worker/*.log
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            message: message
+            queue: queue
+      - labels:
+          level:
+          queue:
+
+  # ─── Payment Service Logs ────────────────────────────────────────────────
+  - job_name: payment-service
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: payment-service
+          __path__: /var/log/rez/payment/*.log
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            message: message
+            transaction_id: transaction_id
+      - labels:
+          level:
+          transaction_id:
+
+  # ─── Wallet Service Logs ─────────────────────────────────────────────────
+  - job_name: wallet-service
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: wallet-service
+          __path__: /var/log/rez/wallet/*.log
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            message: message
+            user_id: user_id
+      - labels:
+          level:
+          user_id:
+
+  # ─── System Logs ─────────────────────────────────────────────────────────
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          __path__: /var/log/syslog
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+)\s+(?P<hostname>\S+)\s+(?P<process>\S+?)(?:\[(?P<pid>\d+)\])?\:\s+(?P<message>.*)$'
+      - labels:
+          hostname:
+          process:
+          pid:
+
+  # ─── Docker Logs ─────────────────────────────────────────────────────────
+  - job_name: docker
+    docker:
+      host: "unix:///var/run/docker.sock"
+      labels:
+        job: docker
+        __path__: /var/lib/docker/containers/*/*.log
+    pipeline_stages:
+      - json:
+          expressions:
+            log: log
+            stream: stream
+            timestamp: timestamp
+      - labels:
+          stream:
+          container_name:
+
+  # ─── NGINX Logs ──────────────────────────────────────────────────────────
+  - job_name: nginx
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          __path__: /var/log/nginx/*.log
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<remote_addr>\S+)\s+-\s+(?P<remote_user>\S+)\s+\[(?P<timestamp>[^\]]+)\]\s+"(?P<request>[^"]+)"\s+(?P<status>\d+)\s+(?P<body_bytes_sent>\d+)\s+"(?P<http_referer>[^"]*)"\s+"(?P<http_user_agent>[^"]*)"'
+      - labels:
+          remote_addr:
+          remote_user:
+          status:

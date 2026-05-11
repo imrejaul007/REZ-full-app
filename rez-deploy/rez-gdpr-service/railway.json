@@ -1,0 +1,57 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile",
+    "buildCommand": "npm run build"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10,
+    "healthCheckCommand": {
+      "type": "HTTP",
+      "path": "/health",
+      "intervalSeconds": 30,
+      "timeoutSeconds": 10,
+      "restartThreshold": 3
+    },
+    "startCommand": "node dist/main.js",
+    "metadata": {
+      "containerPort": 3005
+    },
+    "resources": {
+      "cpu": {
+        "type": "SHARED",
+        "value": 0.5
+      },
+      "memory": {
+        "type": "CONVENTIONAL",
+        "value": 512
+      }
+    },
+    "autoscaling": {
+      "enabled": true,
+      "min": 1,
+      "max": 4,
+      "targetCpuPercentage": 70,
+      "targetMemoryPercentage": 80
+    },
+    "regions": ["us-west-2", "us-east-1"]
+  },
+  "variables": {
+    "NODE_ENV": "production",
+    "PORT": "3005",
+    "APP_NAME": "rez-gdpr-service"
+  },
+  "metrics": {
+    "prometheus": {
+      "enabled": true,
+      "path": "/metrics"
+    }
+  },
+  "ephemeralDisk": {
+    "enabled": true,
+    "sizeMB": 512
+  }
+}

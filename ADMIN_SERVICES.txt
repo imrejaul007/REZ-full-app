@@ -1,0 +1,18 @@
+# ADMIN SERVICES = RTNM-Group (Controls)
+- rez-admin-dashboard
+- rez-admin-service
+- rez-loyalty-admin
+- rez-ops-dashboard
+- rez-admin-training-panel
+- ree-admin
+- ree-dashboard
+- ree-monitoring
+- admin-web-panels
+- admin-panels
+
+## CURRENT OWNERSHIP
+- rez-app-admin → root
+- rez-loyalty-admin → root
+- ree-admin → REZ-Media
+- ree-monitoring → REZ-Media
+- ree-dashboard → REZ-Media

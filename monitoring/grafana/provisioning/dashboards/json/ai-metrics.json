@@ -1,0 +1,20 @@
+{
+  "title": "REZ - AI/ML Metrics",
+  "panels": [
+    {
+      "title": "Intent Capture Rate",
+      "type": "timeseries",
+      "targets": [{"expr": "rate(rez_intent_captured[5m])"}]
+    },
+    {
+      "title": "Dormant Users Revived",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(rez_dormant_revived[24h]))"}]
+    },
+    {
+      "title": "ML Prediction Accuracy",
+      "type": "gauge",
+      "targets": [{"expr": "rez_ml_accuracy * 100"}]
+    }
+  ]
+}

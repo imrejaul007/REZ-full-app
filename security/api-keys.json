@@ -1,0 +1,7 @@
+{
+  "services": {
+    "analytics": "key-xxx",
+    "staff": "key-yyy"
+  },
+  "rotationSchedule": "90days"
+}

@@ -1,0 +1,55 @@
+services:
+  - type: web
+    name: rez-finance-service
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health/live
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SERVICE_NAME
+        value: rez-finance-service
+      - key: PORT
+        value: "4005"
+      - key: HEALTH_PORT
+        value: "4105"
+      - key: MONGODB_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: INTERNAL_SERVICE_TOKENS_JSON
+        sync: false
+      - key: CORS_ORIGIN
+        value: "https://rez.money,https://app.rez.money"
+      - key: WALLET_SERVICE_URL
+        value: "https://rez-wallet-service-36vo.onrender.com"
+      - key: GAMIFICATION_SERVICE_URL
+        value: "https://rez-gamification-service-3b5d.onrender.com"
+      - key: ORDER_SERVICE_URL
+        sync: false
+      - key: FINBOX_API_KEY
+        sync: false
+      - key: FINBOX_API_SECRET
+        sync: false
+      - key: FINBOX_BASE_URL
+        value: "https://api.finbox.in"
+      # FinBox webhook HMAC secret — used to verify partner webhook payloads.
+      # Service logs a warning and rejects all FinBox webhooks if not set.
+      - key: PARTNER_WEBHOOK_SECRET_FINBOX
+        sync: false
+      # Experian client ID — required for credit score lookup feature.
+      - key: EXPERIAN_CLIENT_ID
+        sync: false
+      - key: COINS_PER_LOAN_DISBURSAL_PERCENT
+        value: "0.5"
+      - key: COINS_CREDIT_CARD_APPROVAL
+        value: "500"
+      - key: COINS_CREDIT_SCORE_CHECK
+        value: "10"
+      - key: COINS_FIRST_EMI_BONUS
+        value: "200"
+      - key: SENTRY_DSN
+        sync: false

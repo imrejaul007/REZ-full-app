@@ -1,0 +1,1 @@
+{"version":3,"file":"route.d.ts","sourceRoot":"","sources":["../../../../../../src/app/api/brands/[brandId]/analytics/route.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,WAAW,EAAgB,MAAM,aAAa,CAAC;AAKxD,wBAAsB,GAAG,CACvB,OAAO,EAAE,WAAW,EACpB,EAAE,MAAM,EAAE,EAAE;IAAE,MAAM,EAAE;QAAE,OAAO,EAAE,MAAM,CAAA;KAAE,CAAA;CAAE,gBAqG5C"}

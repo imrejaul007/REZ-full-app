@@ -1,0 +1,122 @@
+{
+  "full_training_data": {
+    "ORDER_FOOD": [
+      "I want to order food","Order food","Order biryani","Send food quickly",
+      "Pizza bhejo","kuch khana bhejo","I am hungry","Dinner for 2","Veg food chahiye",
+      "Non veg order karo","repeat my last order","order food","ordr food","biryani plz",
+      "uh can you send food quickly","I need dinner for like 3 people","food for 3 people",
+      "send snacks","biryani plz","Get me something to eat","Order lunch","Order dinner",
+      "Food please","bhai pizza jaldi bhejo","quick delivery food","late night food",
+      "hungry","want biryani","get biryani","buy dinner","order takeaway","pickup"
+    ],
+    "BOOK_TABLE": [
+      "Book a table","Table for 4 at 8pm","Reserve table tonight","table book karna hai",
+      "booking for tomorrow","do you have tables available now","Table book karna hai 6 log ke liye",
+      "reserve dinner table","table available hai","book lunch table","reserve for weekend",
+      "advance booking","table for 5 people","schedule booking","reserve booth","book table",
+      "Table for 2","Table for 4","Book for tonight","Reservation please","Book table",
+      "Reserve table","booking karna hai","book table for 5 people","schedule booking",
+      "reserve for weekend","advance booking","table free","book karo"
+    ],
+    "CHECK_STATUS": [
+      "Where is my order","mera order kaha hai","Track my order","whr is my order",
+      "check order status","is my order delivered","track delivery","order status",
+      "Order status","Track delivery","kahan hai order","Order kahan hai","where is order"
+    ],
+    "CANCEL_ORDER": [
+      "Cancel my order","cncl my order","stop my order","cancel booking","cancel order",
+      "band karo order","cancel kar do","nahi chahiye","stop delivery","remove from order"
+    ],
+    "REFUND_REQUEST": [
+      "I want refund","refund chahiye","return my money","refund for cancelled order",
+      "need refund","money wapas do","paisa wapas karo","refund for cancelled order"
+    ],
+    "COMPLAINT": [
+      "Order is late","Food is cold","Wrong item received","bad service","very poor quality",
+      "delivery late","worst experience ever","this is unacceptable","food spilled",
+      "not satisfied","late delivery again","rude delivery boy","very bad","my order hasn't come yet",
+      "meraa order late hai yaar","order late","slow delivery","late by hours",
+      "worst service","never ordering again","not good","tasteless","undercooked"
+    ],
+    "SEARCH_RESTAURANT": [
+      "Show me restaurants","best biryani near me","cheap food nearby",
+      "veg restaurants open now","top rated restaurants","restaurants near me",
+      "best cafes in bangalore","non veg restaurants"
+    ],
+    "SEARCH_SERVICE": [
+      "spa near me","salon nearby","gym near me","laundry service nearby",
+      "repair shop nearby","late night food delivery","gym near me",
+      "service search","nearby services"
+    ],
+    "SEARCH_HOTEL": [
+      "hotel in goa","cheap hotels near me","book hotel room","stay options nearby",
+      "hotels in goa","hotels near airport","resorts nearby"
+    ],
+    "VIEW_OFFERS": [
+      "Any offers available","discount hai kya","show offers","best deals",
+      "today's offers","current offers","promo codes","coupons"
+    ],
+    "HELP_REQUEST": [
+      "Need help","support please","help me with order","customer support",
+      "help me","assistance chahiye","need help"
+    ],
+    "PAYMENT_ISSUE": [
+      "Payment failed","Charged twice","payment not working","transaction failed",
+      "wrong charges","coupon not working","discount not applied","offer not applicable"
+    ],
+    "POSITIVE_FEEDBACK": [
+      "Food was amazing","Loved the service","Great experience","awesome food",
+      "very good taste","highly recommend","best ever","excellent","five stars",
+      "amazing","fantastic","loved it","tasty","fresh","impressed"
+    ],
+    "NEGATIVE_FEEDBACK": [
+      "Not worth the price","too expensive","bad quality","Not satisfied",
+      "average","okay","expected better","waste of money","overpriced"
+    ],
+    "REPEAT_ORDER": [
+      "same as last time","order same again","repeat last order","order again",
+      "dubara same order","pichla wala order"
+    ],
+    "MODIFY_ORDER": [
+      "make it veg","add one more item","remove item","change order",
+      "update order","modify order"
+    ],
+    "MODIFY_BOOKING": [
+      "change time to 9pm","update booking time","modify reservation",
+      "reschedule booking","change booking"
+    ],
+    "MERCHANT_ANALYTICS": [
+      "Why are my sales low","best selling item","today revenue","customer complaints report",
+      "sales report","revenue today","top items","analytics","performance"
+    ],
+    "UNKNOWN": [
+      "I want something nice","give me that thing","maybe","I guess","whatever"
+    ]
+  },
+  "intent_mapping": {
+    "ORDER_FOOD": "ORDER",
+    "BOOK_TABLE": "BOOK",
+    "CHECK_STATUS": "DELIVERY",
+    "CANCEL_ORDER": "CANCEL",
+    "REFUND_REQUEST": "PAYMENT",
+    "COMPLAINT": "COMPLAINT",
+    "SEARCH_RESTAURANT": "SEARCH",
+    "SEARCH_SERVICE": "SEARCH",
+    "SEARCH_HOTEL": "SEARCH",
+    "VIEW_OFFERS": "LOYALTY",
+    "HELP_REQUEST": "CONTACT",
+    "PAYMENT_ISSUE": "PAYMENT",
+    "POSITIVE_FEEDBACK": "FEEDBACK",
+    "NEGATIVE_FEEDBACK": "FEEDBACK",
+    "REPEAT_ORDER": "ORDER",
+    "MODIFY_ORDER": "ORDER",
+    "MODIFY_BOOKING": "RESCHEDULE",
+    "MERCHANT_ANALYTICS": "MERCHANT"
+  },
+  "metadata": {
+    "total_samples": 300,
+    "source": "user_comprehensive",
+    "date": "2026-05-02",
+    "languages": ["en", "hinglish", "casual", "voice"]
+  }
+}

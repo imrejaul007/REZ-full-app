@@ -1,0 +1,960 @@
+# ============================================================
+# ReZ Ecosystem — Master Docker Compose
+# ============================================================
+# Master orchestration file for all 9 company repos:
+#   1. REZ-Intelligence   6. CorpPerks
+#   2. REZ-Media          7. StayOwn-Hospitality
+#   3. REZ-Consumer        8. RTNM-Group
+#   4. REZ-Merchant       9. RTNM-Digital
+#   5. RABTUL-Technologies
+#
+# Usage:
+#   Start all:      docker compose -f docker-compose.master.yml up -d
+#   Start specific: docker compose -f docker-compose.master.yml up -d rez-auth-service
+#   Stop all:       docker compose -f docker-compose.master.yml down
+#   View logs:      docker compose -f docker-compose.master.yml logs -f
+#
+# ============================================================
+
+version: '3.8'
+
+services:
+  # ============================================================
+  # CORE INFRASTRUCTURE
+  # ============================================================
+
+  mongodb-primary:
+    image: mongo:7
+    container_name: rez-mongodb-primary
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - rez_mongodb_primary_data:/data/db
+    command: mongod --replSet rs0 --bind_ip_all --priority 2
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', 'db.runCommand({ping:1})']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    networks:
+      - rez-master-network
+
+  mongodb-secondary-1:
+    image: mongo:7
+    container_name: rez-mongodb-secondary-1
+    restart: unless-stopped
+    ports:
+      - '27018:27017'
+    volumes:
+      - rez_mongodb_secondary1_data:/data/db
+    command: mongod --replSet rs0 --bind_ip_all --priority 1
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', 'db.runCommand({ping:1})']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    networks:
+      - rez-master-network
+
+  mongodb-secondary-2:
+    image: mongo:7
+    container_name: rez-mongodb-secondary-2
+    restart: unless-stopped
+    ports:
+      - '27019:27017'
+    volumes:
+      - rez_mongodb_secondary2_data:/data/db
+    command: mongod --replSet rs0 --bind_ip_all --priority 1 --hidden true
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', 'db.runCommand({ping:1})']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    networks:
+      - rez-master-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: rez-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - rez_redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-changeme}
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - rez-master-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: rez-postgres
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rez}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-rez_dev}
+    volumes:
+      - rez_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-rez}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    networks:
+      - rez-master-network
+
+  # ============================================================
+  # REPO: RABTUL-Technologies (Core Backend)
+  # ============================================================
+
+  rez-auth-service:
+    build:
+      context: RABTUL-Technologies/rez-auth-service
+      dockerfile: Dockerfile
+    container_name: rez-auth-service
+    restart: unless-stopped
+    ports:
+      - '4002:4002'
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_auth_dev
+      REDIS_URL: redis://redis:6379
+      PORT: 4002
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-}
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-merchant-service:
+    build:
+      context: RABTUL-Technologies/rez-merchant-service
+      dockerfile: Dockerfile
+    container_name: rez-merchant-service
+    restart: unless-stopped
+    ports:
+      - '4005:4005'
+    environment:
+      NODE_ENV: development
+      PORT: 4005
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_merchant_dev
+      REDIS_URL: redis://redis:6379
+      JWT_MERCHANT_SECRET: ${JWT_MERCHANT_SECRET:-}
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rez-auth-service:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-payment-service:
+    build:
+      context: RABTUL-Technologies/rez-payment-service
+      dockerfile: Dockerfile
+    container_name: rez-payment-service
+    restart: unless-stopped
+    ports:
+      - '4001:4001'
+    environment:
+      NODE_ENV: development
+      PORT: 4001
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_payment_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-wallet-service:
+    build:
+      context: RABTUL-Technologies/rez-wallet-service
+      dockerfile: Dockerfile
+    container_name: rez-wallet-service
+    restart: unless-stopped
+    ports:
+      - '4004:4004'
+    environment:
+      NODE_ENV: development
+      PORT: 4004
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_wallet_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-order-service:
+    build:
+      context: RABTUL-Technologies/rez-order-service
+      dockerfile: Dockerfile
+    container_name: rez-order-service
+    restart: unless-stopped
+    ports:
+      - '3006:3006'
+    environment:
+      NODE_ENV: development
+      PORT: 3006
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_order_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-search-service:
+    build:
+      context: RABTUL-Technologies/rez-search-service
+      dockerfile: Dockerfile
+    container_name: rez-search-service
+    restart: unless-stopped
+    ports:
+      - '4003:4003'
+    environment:
+      NODE_ENV: development
+      PORT: 4003
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_search_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-catalog-service:
+    build:
+      context: RABTUL-Technologies/rez-catalog-service
+      dockerfile: Dockerfile
+    container_name: rez-catalog-service
+    restart: unless-stopped
+    ports:
+      - '3005:3005'
+    environment:
+      NODE_ENV: development
+      PORT: 3005
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_catalog_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-booking-service:
+    build:
+      context: RABTUL-Technologies/rez-booking-service
+      dockerfile: Dockerfile
+    container_name: rez-booking-service
+    restart: unless-stopped
+    ports:
+      - '4011:4011'
+    environment:
+      NODE_ENV: development
+      PORT: 4011
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_booking_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-delivery-service:
+    build:
+      context: RABTUL-Technologies/rez-delivery-service
+      dockerfile: Dockerfile
+    container_name: rez-delivery-service
+    restart: unless-stopped
+    ports:
+      - '4014:4014'
+    environment:
+      NODE_ENV: development
+      PORT: 4014
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_delivery_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-notifications-service:
+    build:
+      context: RABTUL-Technologies/rez-notifications-service
+      dockerfile: Dockerfile
+    container_name: rez-notifications-service
+    restart: unless-stopped
+    ports:
+      - '4016:4016'
+    environment:
+      NODE_ENV: development
+      PORT: 4016
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_notifications_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-profile-service:
+    build:
+      context: RABTUL-Technologies/rez-profile-service
+      dockerfile: Dockerfile
+    container_name: rez-profile-service
+    restart: unless-stopped
+    ports:
+      - '4018:4018'
+    environment:
+      NODE_ENV: development
+      PORT: 4018
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_profile_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-scheduler-service:
+    build:
+      context: RABTUL-Technologies/rez-scheduler-service
+      dockerfile: Dockerfile
+    container_name: rez-scheduler-service
+    restart: unless-stopped
+    ports:
+      - '3012:3012'
+    environment:
+      NODE_ENV: development
+      PORT: 3012
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_scheduler_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  # ============================================================
+  # REPO: REZ-Intelligence (AI/ML Services)
+  # ============================================================
+
+  rez-intelligence-hub:
+    build:
+      context: REZ-Intelligence/rez-intelligence-hub
+      dockerfile: Dockerfile
+    container_name: rez-intelligence-hub
+    restart: unless-stopped
+    ports:
+      - '4020:4020'
+    environment:
+      NODE_ENV: development
+      PORT: 4020
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_intelligence
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-intent-graph:
+    build:
+      context: REZ-Intelligence/rez-intent-graph
+      dockerfile: Dockerfile
+    container_name: rez-intent-graph
+    restart: unless-stopped
+    ports:
+      - '3007:3001'
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_intent_graph
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-personalization-engine:
+    build:
+      context: REZ-Intelligence/REZ-personalization-engine
+      dockerfile: Dockerfile
+    container_name: rez-personalization-engine
+    restart: unless-stopped
+    ports:
+      - '4017:4017'
+    environment:
+      NODE_ENV: development
+      PORT: 4017
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_personalization
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-targeting-engine:
+    build:
+      context: REZ-Intelligence/REZ-targeting-engine
+      dockerfile: Dockerfile
+    container_name: rez-targeting-engine
+    restart: unless-stopped
+    ports:
+      - '3013:3013'
+    environment:
+      NODE_ENV: development
+      PORT: 3013
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_targeting
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-action-engine:
+    build:
+      context: REZ-Intelligence/REZ-action-engine
+      dockerfile: Dockerfile
+    container_name: rez-action-engine
+    restart: unless-stopped
+    ports:
+      - '3014:3014'
+    environment:
+      NODE_ENV: development
+      PORT: 3014
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_action_engine
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-recommendation-engine:
+    build:
+      context: REZ-Intelligence/REZ-recommendation-engine
+      dockerfile: Dockerfile
+    container_name: rez-recommendation-engine
+    restart: unless-stopped
+    ports:
+      - '4019:4019'
+    environment:
+      NODE_ENV: development
+      PORT: 4019
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_recommendation
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-insights-service:
+    build:
+      context: REZ-Intelligence/REZ-insights-service
+      dockerfile: Dockerfile
+    container_name: rez-insights-service
+    restart: unless-stopped
+    ports:
+      - '4021:4021'
+    environment:
+      NODE_ENV: development
+      PORT: 4021
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_insights
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-ml-feature-store:
+    build:
+      context: REZ-Intelligence/rez-ml-feature-store
+      dockerfile: Dockerfile
+    container_name: rez-ml-feature-store
+    restart: unless-stopped
+    ports:
+      - '4022:4022'
+    environment:
+      NODE_ENV: development
+      PORT: 4022
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_ml_feature_store
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  # ============================================================
+  # REPO: REZ-Media (Marketing & Ads)
+  # ============================================================
+
+  rez-marketing-service:
+    build:
+      context: REZ-Media/REZ-marketing-service
+      dockerfile: Dockerfile
+    container_name: rez-marketing-service
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_marketing_dev
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-}
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-gamification-service:
+    build:
+      context: REZ-Media/REZ-gamification-service
+      dockerfile: Dockerfile
+    container_name: rez-gamification-service
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_gamification_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-ads-service:
+    build:
+      context: REZ-Media/REZ-ads-service
+      dockerfile: Dockerfile
+    container_name: rez-ads-service
+    restart: unless-stopped
+    ports:
+      - '4007:4007'
+    environment:
+      NODE_ENV: development
+      PORT: 4007
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_ads_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-feedback-service:
+    build:
+      context: REZ-Media/REZ-feedback-service
+      dockerfile: Dockerfile
+    container_name: rez-feedback-service
+    restart: unless-stopped
+    ports:
+      - '4010:4010'
+    environment:
+      NODE_ENV: development
+      PORT: 4010
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_feedback_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  # ============================================================
+  # REPO: REZ-Consumer (Consumer Apps)
+  # ============================================================
+
+  rez-app-consumer:
+    build:
+      context: REZ-Consumer/rez-app-consumer
+      dockerfile: Dockerfile
+    container_name: rez-app-consumer
+    restart: unless-stopped
+    ports:
+      - '3004:3000'
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:4005
+      REZ_AUTH_SERVICE_URL: http://localhost:4002
+      REZ_MERCHANT_SERVICE_URL: http://localhost:4005
+    depends_on:
+      - rez-auth-service
+      - rez-merchant-service
+    networks:
+      - rez-master-network
+
+  rez-now:
+    build:
+      context: REZ-Consumer/rez-now
+      dockerfile: Dockerfile
+    container_name: rez-now
+    restart: unless-stopped
+    ports:
+      - '3003:3000'
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_APP_URL: http://localhost:3003
+      NEXT_PUBLIC_API_URL: https://api.rezapp.com
+      REZ_AUTH_SERVICE_URL: http://localhost:4002
+      REZ_WALLET_SERVICE_URL: http://localhost:4004
+      REZ_MERCHANT_SERVICE_URL: http://localhost:4005
+    depends_on:
+      - rez-auth-service
+      - rez-merchant-service
+    networks:
+      - rez-master-network
+
+  rez-web-menu:
+    build:
+      context: REZ-Consumer/rez-web-menu
+      dockerfile: Dockerfile
+    container_name: rez-web-menu
+    restart: unless-stopped
+    ports:
+      - '3008:3000'
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:4005
+      REZ_AUTH_SERVICE_URL: http://localhost:4002
+    depends_on:
+      - rez-auth-service
+      - rez-merchant-service
+    networks:
+      - rez-master-network
+
+  # ============================================================
+  # REPO: REZ-Merchant (Merchant Apps)
+  # ============================================================
+
+  rez-app-merchant:
+    build:
+      context: REZ-Merchant/rez-app-merchant
+      dockerfile: Dockerfile
+    container_name: rez-app-merchant
+    restart: unless-stopped
+    ports:
+      - '3009:3000'
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:4005
+      REZ_AUTH_SERVICE_URL: http://localhost:4002
+      REZ_MERCHANT_SERVICE_URL: http://localhost:4005
+    depends_on:
+      - rez-auth-service
+      - rez-merchant-service
+    networks:
+      - rez-master-network
+
+  rez-merchant-intelligence-service:
+    build:
+      context: REZ-Merchant/rez-merchant-intelligence-service
+      dockerfile: Dockerfile
+    container_name: rez-merchant-intelligence-service
+    restart: unless-stopped
+    ports:
+      - '4025:4025'
+    environment:
+      NODE_ENV: development
+      PORT: 4025
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_merchant_intelligence
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  # ============================================================
+  # REPO: CorpPerks (Corporate Perks)
+  # ============================================================
+
+  corpperks-api:
+    build:
+      context: CorpPerks/rez-corpperks-service
+      dockerfile: Dockerfile
+    container_name: corpperks-api
+    restart: unless-stopped
+    ports:
+      - '4013:4013'
+    environment:
+      NODE_ENV: development
+      PORT: 4013
+      MONGODB_URI: mongodb://mongodb-primary:27017/corpperks
+      CORS_ORIGIN: '*'
+      WALLET_SERVICE_URL: http://rez-wallet-service:4004
+      FINANCE_SERVICE_URL: http://rez-finance-service:4005
+      KARMA_SERVICE_URL: http://rez-karma-service:4006
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  # ============================================================
+  # REPO: StayOwn-Hospitality (Hotel/Hospitality)
+  # ============================================================
+
+  rez-stayown-service:
+    build:
+      context: StayOwn-Hospitality/rez-stayown-service
+      dockerfile: Dockerfile
+    container_name: rez-stayown-service
+    restart: unless-stopped
+    ports:
+      - '4015:4015'
+    environment:
+      NODE_ENV: development
+      PORT: 4015
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_stayown
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  hotel-ota-api:
+    build:
+      context: StayOwn-Hospitality/Hotel OTA
+      dockerfile: ./apps/api/Dockerfile
+    container_name: hotel-ota-api
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rez}:${POSTGRES_PASSWORD}@postgres:5432/hotel_ota_dev
+      REDIS_URL: redis://redis:6379
+      REZ_AUTH_SERVICE_URL: http://rez-auth-service:4002
+      REZ_MERCHANT_SERVICE_URL: http://rez-merchant-service:4005
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  # ============================================================
+  # REPO: RTNM-Group (Admin & Operations)
+  # ============================================================
+
+  rez-access-control-service:
+    build:
+      context: RTNM-Group/REZ-access-control-service
+      dockerfile: Dockerfile
+    container_name: rez-access-control-service
+    restart: unless-stopped
+    ports:
+      - '4026:4026'
+    environment:
+      NODE_ENV: development
+      PORT: 4026
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_access_control
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-identity-service:
+    build:
+      context: RTNM-Group/REZ-identity-service
+      dockerfile: Dockerfile
+    container_name: rez-identity-service
+    restart: unless-stopped
+    ports:
+      - '4027:4027'
+    environment:
+      NODE_ENV: development
+      PORT: 4027
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_identity
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-app-admin:
+    build:
+      context: RTNM-Group/rez-app-admin
+      dockerfile: Dockerfile
+    container_name: rez-app-admin
+    restart: unless-stopped
+    ports:
+      - '3010:3000'
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:4026
+      REZ_AUTH_SERVICE_URL: http://localhost:4002
+    depends_on:
+      - rez-auth-service
+      - rez-access-control-service
+    networks:
+      - rez-master-network
+
+  # ============================================================
+  # REPO: RTNM-Digital (Operations & Trust)
+  # ============================================================
+
+  rez-ops-center:
+    build:
+      context: RTNM-Digital/REZ-ops-center
+      dockerfile: Dockerfile
+    container_name: rez-ops-center
+    restart: unless-stopped
+    ports:
+      - '4028:4028'
+    environment:
+      NODE_ENV: development
+      PORT: 4028
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_ops_center
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  rez-trust-platform:
+    build:
+      context: RTNM-Digital/REZ-trust-platform
+      dockerfile: Dockerfile
+    container_name: rez-trust-platform
+    restart: unless-stopped
+    ports:
+      - '4029:4029'
+    environment:
+      NODE_ENV: development
+      PORT: 4029
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_trust_platform
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-master-network
+
+  # ============================================================
+  # VOLUMES
+  # ============================================================
+
+volumes:
+  rez_mongodb_primary_data:
+    driver: local
+  rez_mongodb_secondary1_data:
+    driver: local
+  rez_mongodb_secondary2_data:
+    driver: local
+  rez_redis_data:
+    driver: local
+  rez_postgres_data:
+    driver: local
+
+  # ============================================================
+  # NETWORKS
+  # ============================================================
+
+networks:
+  rez-master-network:
+    name: rez-master-network
+    driver: bridge

@@ -1,0 +1,559 @@
+# REZ Platform - Complete Docker Compose
+# Run with: docker-compose -f docker-compose.full.yml up -d
+
+version: '3.8'
+
+services:
+  # ============================================
+  # CORE SERVICES
+  # ============================================
+
+  # API Gateway (Entry Point)
+  rez-api-gateway:
+    build:
+      context: ./rez-api-gateway
+      dockerfile: Dockerfile
+    container_name: rez-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - rez-auth-service
+      - rez-wallet-service
+      - rez-payment-service
+      - rez-order-service
+      - rez-merchant-service
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Auth Service
+  rez-auth-service:
+    build:
+      context: ./rez-auth-service
+      dockerfile: Dockerfile
+    container_name: rez-auth-service
+    ports:
+      - "4002:4002"
+    environment:
+      - NODE_ENV=production
+      - PORT=4002
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Wallet Service
+  rez-wallet-service:
+    build:
+      context: ./rez-wallet-service
+      dockerfile: Dockerfile
+    container_name: rez-wallet-service
+    ports:
+      - "4004:4004"
+    environment:
+      - NODE_ENV=production
+      - PORT=4004
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - rez-auth-service
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Payment Service
+  rez-payment-service:
+    build:
+      context: ./rez-payment-service
+      dockerfile: Dockerfile
+    container_name: rez-payment-service
+    ports:
+      - "4001:4001"
+    environment:
+      - NODE_ENV=production
+      - PORT=4001
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
+    depends_on:
+      - rez-auth-service
+      - rez-wallet-service
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Order Service
+  rez-order-service:
+    build:
+      context: ./rez-order-service
+      dockerfile: Dockerfile
+    container_name: rez-order-service
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=production
+      - PORT=3006
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - rez-auth-service
+      - rez-payment-service
+      - rez-merchant-service
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Merchant Service
+  rez-merchant-service:
+    build:
+      context: ./rez-merchant-service
+      dockerfile: Dockerfile
+    container_name: rez-merchant-service
+    ports:
+      - "4005:4005"
+    environment:
+      - NODE_ENV=production
+      - PORT=4005
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # ============================================
+  # AI SERVICES
+  # ============================================
+
+  # Intent Graph (Core AI)
+  rez-intent-graph:
+    build:
+      context: ./rez-intent-graph
+      dockerfile: Dockerfile
+    container_name: rez-intent-graph
+    ports:
+      - "3007:3007"
+    environment:
+      - NODE_ENV=production
+      - PORT=3007
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - rez-auth-service
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # User Intelligence
+  rez-user-intelligence:
+    build:
+      context: ./rez-user-intelligence
+      dockerfile: Dockerfile
+    container_name: rez-user-intelligence
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=production
+      - PORT=3004
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Merchant Intelligence
+  rez-merchant-intelligence:
+    build:
+      context: ./rez-merchant-intelligence
+      dockerfile: Dockerfile
+    container_name: rez-merchant-intelligence
+    ports:
+      - "4012:4012"
+    environment:
+      - NODE_ENV=production
+      - PORT=4012
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Personalization Engine
+  rez-personalization-engine:
+    build:
+      context: ./rez-personalization-engine
+      dockerfile: Dockerfile
+    container_name: rez-personalization-engine
+    ports:
+      - "4017:4017"
+    environment:
+      - NODE_ENV=production
+      - PORT=4017
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Targeting Engine
+  rez-targeting-engine:
+    build:
+      context: ./rez-targeting-engine
+      dockerfile: Dockerfile
+    container_name: rez-targeting-engine
+    ports:
+      - "3013:3013"
+    environment:
+      - NODE_ENV=production
+      - PORT=3013
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Action Engine
+  rez-action-engine:
+    build:
+      context: ./rez-action-engine
+      dockerfile: Dockerfile
+    container_name: rez-action-engine
+    ports:
+      - "3014:3014"
+    environment:
+      - NODE_ENV=production
+      - PORT=3014
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Intelligence Hub
+  rez-intelligence-hub:
+    build:
+      context: ./rez-intelligence-hub
+      dockerfile: Dockerfile
+    container_name: rez-intelligence-hub
+    ports:
+      - "4020:4020"
+    environment:
+      - NODE_ENV=production
+      - PORT=4020
+      - MONGODB_URI=${MONGODB_URI}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # ============================================
+  # AI COPILOTS
+  # ============================================
+
+  # Consumer Copilot
+  rez-consumer-copilot:
+    build:
+      context: ./rez-consumer-copilot
+      dockerfile: Dockerfile
+    container_name: rez-consumer-copilot
+    ports:
+      - "4021:4021"
+    environment:
+      - NODE_ENV=production
+      - PORT=4021
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Merchant Copilot
+  rez-merchant-copilot:
+    build:
+      context: ./rez-merchant-copilot
+      dockerfile: Dockerfile
+    container_name: rez-merchant-copilot
+    ports:
+      - "4022:4022"
+    environment:
+      - NODE_ENV=production
+      - PORT=4022
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Support Copilot
+  rez-support-copilot:
+    build:
+      context: ./REZ-support-copilot
+      dockerfile: Dockerfile
+    container_name: rez-support-copilot
+    ports:
+      - "4033:4033"
+    environment:
+      - NODE_ENV=production
+      - PORT=4033
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # ============================================
+  # ML SERVICES
+  # ============================================
+
+  # ML Feature Store
+  rez-ml-feature-store:
+    build:
+      context: ./rez-ml-feature-store
+      dockerfile: Dockerfile
+    container_name: rez-ml-feature-store
+    ports:
+      - "4100:4100"
+    environment:
+      - NODE_ENV=production
+      - PORT=4100
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # ML Model Registry
+  rez-ml-model-registry:
+    build:
+      context: ./rez-ml-model-registry
+      dockerfile: Dockerfile
+    container_name: rez-ml-model-registry
+    ports:
+      - "4101:4101"
+    environment:
+      - NODE_ENV=production
+      - PORT=4101
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+    volumes:
+      - ./ml-models:/app/models
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Training Data Service
+  rez-training-data-service:
+    build:
+      context: ./rez-training-data-service
+      dockerfile: Dockerfile
+    container_name: rez-training-data-service
+    ports:
+      - "4102:4102"
+    environment:
+      - NODE_ENV=production
+      - PORT=4102
+      - MONGODB_URI=${MONGODB_URI}
+    volumes:
+      - ./training-data:/app/data
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Fraud Detection
+  rez-fraud-detection-service:
+    build:
+      context: ./rez-fraud-detection-service
+      dockerfile: Dockerfile
+    container_name: rez-fraud-detection-service
+    ports:
+      - "4103:4103"
+    environment:
+      - NODE_ENV=production
+      - PORT=4103
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Price Optimization
+  rez-price-optimization-service:
+    build:
+      context: ./rez-price-optimization-service
+      dockerfile: Dockerfile
+    container_name: rez-price-optimization-service
+    ports:
+      - "4104:4104"
+    environment:
+      - NODE_ENV=production
+      - PORT=4104
+      - MONGODB_URI=${MONGODB_URI}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # A/B Testing
+  rez-ab-testing-service:
+    build:
+      context: ./rez-ab-testing-service
+      dockerfile: Dockerfile
+    container_name: rez-ab-testing-service
+    ports:
+      - "4105:4105"
+    environment:
+      - NODE_ENV=production
+      - PORT=4105
+      - MONGODB_URI=${MONGODB_URI}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Data Quality Monitor
+  rez-data-quality-monitor:
+    build:
+      context: ./rez-data-quality-monitor
+      dockerfile: Dockerfile
+    container_name: rez-data-quality-monitor
+    ports:
+      - "4106:4106"
+    environment:
+      - NODE_ENV=production
+      - PORT=4106
+      - MONGODB_URI=${MONGODB_URI}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # ML Retraining Pipeline
+  rez-ml-retraining-pipeline:
+    build:
+      context: ./rez-ml-retraining-pipeline
+      dockerfile: Dockerfile
+    container_name: rez-ml-retraining-pipeline
+    ports:
+      - "4107:4107"
+    environment:
+      - NODE_ENV=production
+      - PORT=4107
+      - MONGODB_URI=${MONGODB_URI}
+      - REDIS_URL=${REDIS_URL}
+    volumes:
+      - ./ml-models:/app/models
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # ============================================
+  # REVENUE SERVICES
+  # ============================================
+
+  # BBPS
+  rez-bbps-service:
+    build:
+      context: ./rez-bbps-service
+      dockerfile: Dockerfile
+    container_name: rez-bbps-service
+    ports:
+      - "4110:4110"
+    environment:
+      - NODE_ENV=production
+      - PORT=4110
+      - MONGODB_URI=${MONGODB_URI}
+      - BBPS_MERCHANT_ID=${BBPS_MERCHANT_ID}
+      - BBPS_API_KEY=${BBPS_API_KEY}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Mobile Recharge
+  rez-recharge-service:
+    build:
+      context: ./rez-recharge-service
+      dockerfile: Dockerfile
+    container_name: rez-recharge-service
+    ports:
+      - "4111:4111"
+    environment:
+      - NODE_ENV=production
+      - PORT=4111
+      - MONGODB_URI=${MONGODB_URI}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # E-Invoice
+  rez-einvoice-service:
+    build:
+      context: ./rez-einvoice-service
+      dockerfile: Dockerfile
+    container_name: rez-einvoice-service
+    ports:
+      - "4112:4112"
+    environment:
+      - NODE_ENV=production
+      - PORT=4112
+      - MONGODB_URI=${MONGODB_URI}
+      - EINVOICE_USERNAME=${EINVOICE_USERNAME}
+      - EINVOICE_PASSWORD=${EINVOICE_PASSWORD}
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # ============================================
+  # INFRASTRUCTURE
+  # ============================================
+
+  # MongoDB
+  mongodb:
+    image: mongo:7.0
+    container_name: rez-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: rez-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+  # Nginx (Reverse Proxy)
+  nginx:
+    image: nginx:alpine
+    container_name: rez-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/production.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - rez-api-gateway
+    networks:
+      - rez-network
+    restart: unless-stopped
+
+networks:
+  rez-network:
+    driver: bridge
+
+volumes:
+  mongodb-data:
+  redis-data:

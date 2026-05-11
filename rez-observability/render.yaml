@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: rez-observability
+    env: node
+    region: singapore
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4031
+      - key: MONGODB_URI
+        sync: false

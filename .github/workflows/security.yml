@@ -1,0 +1,287 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Weekly security scan
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+env:
+  NODE_VERSION: '20'
+  # Retry configuration
+  RETRY_MAX_ATTEMPTS: 3
+  RETRY_DELAY_MS: 5000
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  # SAST: Static Application Security Testing
+  # ─────────────────────────────────────────────────────────
+  sast-scan:
+    name: SAST Scan (CodeQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+          queries: security-extended
+
+      - name: Build
+        run: npm ci
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript"
+
+  # ─────────────────────────────────────────────────────────
+  # Dependency Security Audit
+  # ─────────────────────────────────────────────────────────
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+        delay: ${{ env.RETRY_DELAY_MS }}
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Check for known vulnerabilities
+        run: npx audit-ci --critical --high
+
+  # ─────────────────────────────────────────────────────────
+  # Secrets Scanning
+  # ─────────────────────────────────────────────────────────
+  secrets-scan:
+    name: Secrets Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          nojson: true
+        continue-on-error: true
+
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_LICENSE_TYPE: public
+
+  # ─────────────────────────────────────────────────────────
+  # Dockerfile Security Scan (SAST for containers)
+  # ─────────────────────────────────────────────────────────
+  dockerfile-scan:
+    name: Dockerfile Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Docker Scout
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image-ref: 'ghcr.io/${{ github.repository }}:latest'
+          only-severities: critical,high
+          exit-code: 0
+
+  # ─────────────────────────────────────────────────────────
+  # DAST: Dynamic Application Security Testing
+  # ─────────────────────────────────────────────────────────
+  dast-scan:
+    name: DAST Scan (OWASP ZAP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start application
+        run: |
+          npm ci
+          npm run build
+          npm start &
+          APP_PID=$!
+          echo "APP_PID=$APP_PID" >> $GITHUB_ENV
+          sleep 10
+
+      - name: Wait for app to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
+              echo "App is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "App failed to start"
+          exit 1
+        retries: 3
+
+      - name: Run OWASP ZAP scan
+        uses: zaproxy/action-baseline@v0.9.0
+        with:
+          target: 'http://localhost:3000'
+          rules_file_name: '.zap/rules.xml'
+          cmd_options: '-A'
+        continue-on-error: true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          if [ -n "$APP_PID" ]; then
+            kill $APP_PID 2>/dev/null || true
+          fi
+
+  # ─────────────────────────────────────────────────────────
+  # License Compliance
+  # ─────────────────────────────────────────────────────────
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install license checker
+        run: npm install -g license-checker
+
+      - name: Check dependencies
+        run: license-checker --csv --out licenses.csv
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: license-report
+          path: licenses.csv
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────────────
+  # Security Summary
+  # ─────────────────────────────────────────────────────────
+  security-summary:
+    name: Security Summary
+    needs: [sast-scan, dependency-audit, secrets-scan, dockerfile-scan]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "=========================================="
+          echo "  SECURITY SCAN SUMMARY"
+          echo "=========================================="
+          echo "SAST Scan: ${{ needs.sast-scan.result }}"
+          echo "Dependency Audit: ${{ needs.dependency-audit.result }}"
+          echo "Secrets Scan: ${{ needs.secrets-scan.result }}"
+          echo "Dockerfile Scan: ${{ needs.dockerfile-scan.result }}"
+          echo "=========================================="
+
+          # Fail if any critical scan failed
+          if [ "${{ needs.sast-scan.result }}" = "failure" ] || \
+             [ "${{ needs.dependency-audit.result }}" = "failure" ]; then
+            echo "Critical security issues detected!"
+            exit 1
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "Security Scan FAILED",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Security Scan Failed*\n\n*Branch:* `${{ github.ref_name }}`\n*Commit:* `${{ github.sha }}`"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

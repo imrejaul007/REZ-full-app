@@ -1,0 +1,395 @@
+# ReZ Ecosystem Services Docker Compose
+# This file links all new services together for local development and testing
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # REZ DELIVERY SERVICE
+  # Port: 3005
+  # Description: Driver management, delivery tracking, route optimization
+  # =============================================================================
+  rez-delivery-service:
+    build:
+      context: ./rez-delivery-service
+      dockerfile: Dockerfile
+    container_name: rez-delivery-service
+    restart: unless-stopped
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=development
+      - PORT=3005
+      - MONGODB_URI=mongodb://mongodb:27017/rez_delivery
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SOCKET_PORT=3006
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # =============================================================================
+  # REZ ANALYTICS SERVICE
+  # Port: 3007
+  # Description: Real-time analytics, dashboards, reporting
+  # =============================================================================
+  rez-analytics-service:
+    build:
+      context: ./rez-analytics-service
+      dockerfile: Dockerfile
+    container_name: rez-analytics-service
+    restart: unless-stopped
+    ports:
+      - "3007:3007"
+    environment:
+      - NODE_ENV=development
+      - PORT=3007
+      - CACHE_TTL_HOURS=24
+      - ORDER_SERVICE_URL=http://rez-order-service:3003
+      - CUSTOMER_SERVICE_URL=http://rez-customer-service:3010
+    depends_on:
+      - mongodb
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3007/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # REZ PAYMENT LINKS SERVICE
+  # Port: 3008
+  # Description: Payment link creation, QR codes, UPI integration
+  # =============================================================================
+  rez-payment-links-service:
+    build:
+      context: ./rez-payment-links-service
+      dockerfile: Dockerfile
+    container_name: rez-payment-links-service
+    restart: unless-stopped
+    ports:
+      - "3008:3008"
+    environment:
+      - NODE_ENV=development
+      - PORT=3008
+      - BASE_URL=https://pay.rezpay.in
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - UPI_API_KEY=${UPI_API_KEY}
+      - SMS_API_KEY=${SMS_API_KEY}
+      - WHATSAPP_API_KEY=${WHATSAPP_API_KEY}
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3008/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # REZ JOURNEY SERVICE
+  # Port: 3009
+  # Description: Customer journey automation, triggers, A/B testing
+  # =============================================================================
+  rez-journey-service:
+    build:
+      context: ./rez-journey-service
+      dockerfile: Dockerfile
+    container_name: rez-journey-service
+    restart: unless-stopped
+    ports:
+      - "3009:3009"
+    environment:
+      - NODE_ENV=development
+      - PORT=3009
+      - MAX_JOURNEY_STEPS=50
+      - NOTIFICATION_SERVICE_URL=http://rez-notifications-hub:3012
+    depends_on:
+      - mongodb
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3009/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # REZ AUTOMATION SERVICE
+  # Port: 4014
+  # Description: Rule-based automation, event processing, workflow triggers
+  # =============================================================================
+  rez-automation-service:
+    build:
+      context: ./rez-automation-service
+      dockerfile: Dockerfile
+    container_name: rez-automation-service
+    restart: unless-stopped
+    ports:
+      - "4014:4014"
+    environment:
+      - NODE_ENV=development
+      - PORT=4014
+      - MONGODB_URI=mongodb://mongodb:27017/rez_automation
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - EVENT_BUS_URL=amqp://rabbitmq:5672
+      - WORKER_CONCURRENCY=5
+    depends_on:
+      - mongodb
+      - redis
+      - rabbitmq
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4014/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # REZ GDPR SERVICE
+  # Port: 4021
+  # Description: GDPR compliance, consent management, data erasure
+  # =============================================================================
+  rez-gdpr-service:
+    build:
+      context: ./rez-gdpr-service
+      dockerfile: Dockerfile
+    container_name: rez-gdpr-service
+    restart: unless-stopped
+    ports:
+      - "4021:4021"
+    environment:
+      - NODE_ENV=development
+      - PORT=4021
+      - DATA_RETENTION_DAYS=365
+      - ERASURE_BATCH_SIZE=100
+      - USER_SERVICE_URL=http://rez-user-service:3010
+    depends_on:
+      - mongodb
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4021/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # REZ VALIDATION SERVICE
+  # Port: 4022
+  # Description: Input validation, sanitization, rate limiting
+  # =============================================================================
+  rez-validation-service:
+    build:
+      context: ./rez-validation-service
+      dockerfile: Dockerfile
+    container_name: rez-validation-service
+    restart: unless-stopped
+    ports:
+      - "4022:4022"
+    environment:
+      - NODE_ENV=development
+      - PORT=4022
+      - VALIDATION_API_KEY=${VALIDATION_API_KEY}
+      - MAX_REQUEST_SIZE_MB=10
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4022/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # REZ WEBSOCKET HUB
+  # Port: 4024
+  # Description: Real-time WebSocket communication, channels, presence
+  # =============================================================================
+  rez-websocket-hub:
+    build:
+      context: ./rez-websocket-hub
+      dockerfile: Dockerfile
+    container_name: rez-websocket-hub
+    restart: unless-stopped
+    ports:
+      - "4024:4024"
+    environment:
+      - NODE_ENV=development
+      - PORT=4024
+      - WS_PATH=/ws
+      - PING_INTERVAL=30000
+      - PING_TIMEOUT=10000
+      - MAX_MESSAGE_SIZE=1048576
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://rez.money,https://www.rez.money}
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4024/api/ws/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # REZ AUDIT SERVICE
+  # Port: 3025
+  # Description: Audit trail, compliance reporting, event logging
+  # =============================================================================
+  rez-audit-service:
+    build:
+      context: ./rez-audit-service
+      dockerfile: Dockerfile
+    container_name: rez-audit-service
+    restart: unless-stopped
+    ports:
+      - "3025:3025"
+    environment:
+      - NODE_ENV=development
+      - PORT=3025
+      - LOG_LEVEL=info
+      - MAX_EVENTS=100000
+      - RETENTION_DAYS=90
+    networks:
+      - rez-network
+    volumes:
+      - ./rez-audit-service/logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3025/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # REZ CURRENCY SERVICE
+  # Port: 4026
+  # Description: Currency conversion, exchange rates, fee calculations
+  # =============================================================================
+  rez-currency-service:
+    build:
+      context: ./rez-currency-service
+      dockerfile: Dockerfile
+    container_name: rez-currency-service
+    restart: unless-stopped
+    ports:
+      - "4026:4026"
+    environment:
+      - NODE_ENV=development
+      - PORT=4026
+      - EXCHANGE_API_KEY=${EXCHANGE_API_KEY}
+      - EXCHANGE_API_URL=https://api.exchangerate-api.com/v4
+      - LOG_LEVEL=info
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4026/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =============================================================================
+  # INFRASTRUCTURE SERVICES
+  # =============================================================================
+
+  mongodb:
+    image: mongo:7.0
+    container_name: rez-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=rez_services
+    networks:
+      - rez-network
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: rez-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    networks:
+      - rez-network
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rez-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    networks:
+      - rez-network
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  rez-network:
+    driver: bridge
+    name: rez-services-network
+
+volumes:
+  mongodb_data:
+    name: rez-mongodb-data
+  redis_data:
+    name: rez-redis-data
+  rabbitmq_data:
+    name: rez-rabbitmq-data
+
+# =============================================================================
+# NOTES
+# =============================================================================
+# To start all services:
+#   docker-compose -f docker-compose.services.yml up -d
+#
+# To view logs:
+#   docker-compose -f docker-compose.services.yml logs -f
+#
+# To stop all services:
+#   docker-compose -f docker-compose.services.yml down
+#
+# To rebuild after changes:
+#   docker-compose -f docker-compose.services.yml up -d --build
+#
+# To scale a service:
+#   docker-compose -f docker-compose.services.yml up -d --scale rez-delivery-service=3
+#
+# Environment variables can be set in a .env file or passed directly:
+#   WEBHOOK_SECRET=your_secret
+#   JWT_SECRET=your_jwt_secret
+#   UPI_API_KEY=your_upi_key
+#   EXCHANGE_API_KEY=your_exchange_key
+# =============================================================================

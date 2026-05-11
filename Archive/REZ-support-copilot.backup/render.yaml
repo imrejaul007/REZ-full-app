@@ -1,0 +1,30 @@
+# render.yaml for REZ Support Copilot
+# Deploy at: https://dashboard.render.com
+
+services:
+  - type: web
+    name: REZ-support-copilot
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: npm install
+    startCommand: node src/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4033
+      - key: MONGODB_URI
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: REZ_EVENT_PLATFORM_URL
+        sync: false
+        value: https://REZ-event-platform.onrender.com
+      - key: REZ_SEARCH_SERVICE_URL
+        sync: false
+        value: https://rez-search-service.onrender.com
+      - key: REZ_ORDER_SERVICE_URL
+        sync: false
+        value: https://rez-order-service.onrender.com

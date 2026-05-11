@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a3a52">
+  <link rel="icon" type="image/svg+xml" href="/rez-icon.svg">
+  <title>Page Not Found — REZ Menu</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; background: #f4f6f9; color: #1a3a52; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+    .card { background: #fff; border-radius: 16px; padding: 40px 32px; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .emoji { font-size: 48px; margin-bottom: 16px; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    p { color: #607080; font-size: 15px; line-height: 1.5; margin-bottom: 28px; }
+    .btn-primary { display: block; background: #1a3a52; color: #fff; text-decoration: none; padding: 14px 24px; border-radius: 10px; font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+    .btn-secondary { display: block; color: #1a3a52; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-size: 15px; font-weight: 500; border: 1.5px solid #1a3a52; }
+    /* Smart app banner (same as index.html) */
+    #rez-app-banner { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #1a3a52; color: #fff; padding: 10px 12px; font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); align-items: center; gap: 10px; }
+    #rez-app-banner.visible { display: flex; }
+    #rez-banner-icon { width: 36px; height: 36px; border-radius: 8px; background: #ffcd57; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    #rez-banner-text { flex: 1; line-height: 1.3; }
+    #rez-banner-text strong { display: block; font-size: 14px; color: #ffcd57; }
+    #rez-banner-open { background: #ffcd57; color: #1a3a52; border: none; border-radius: 6px; padding: 6px 14px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    #rez-banner-close { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 18px; cursor: pointer; padding: 0 4px; flex-shrink: 0; line-height: 1; }
+  </style>
+</head>
+<body>
+  <div id="rez-app-banner">
+    <div id="rez-banner-icon">🏪</div>
+    <div id="rez-banner-text">
+      <strong>Open in REZ App</strong>
+      Earn coins &amp; get exclusive offers
+    </div>
+    <button id="rez-banner-open">Open App</button>
+    <button id="rez-banner-close" aria-label="Dismiss">✕</button>
+  </div>
+
+  <div class="card">
+    <div class="emoji">🔍</div>
+    <h1>Page not found</h1>
+    <p>This link may have expired or the store may have moved. Try scanning the QR code again or go back to explore.</p>
+    <a href="/" class="btn-primary">Go to REZ Menu</a>
+    <a href="javascript:history.back()" class="btn-secondary">Go Back</a>
+  </div>
+
+  <script>
+  (function() {
+    var ua = navigator.userAgent || '';
+    var isMobile = /iPhone|iPad|iPod|Android/i.test(ua);
+    if (!isMobile) return;
+    var dismissed = sessionStorage.getItem('rez_banner_dismissed');
+    if (dismissed) return;
+    var banner = document.getElementById('rez-app-banner');
+    if (!banner) return;
+    banner.classList.add('visible');
+    document.documentElement.style.paddingTop = '62px';
+    document.getElementById('rez-banner-open').addEventListener('click', function() {
+      var fallbackTimer = setTimeout(function() {
+        banner.classList.remove('visible');
+        document.documentElement.style.paddingTop = '';
+        sessionStorage.setItem('rez_banner_dismissed', '1');
+      }, 1500);
+      window.location.href = 'rezapp://home';
+      document.addEventListener('visibilitychange', function onVis() {
+        if (document.hidden) {
+          clearTimeout(fallbackTimer);
+          document.removeEventListener('visibilitychange', onVis);
+          banner.classList.remove('visible');
+          document.documentElement.style.paddingTop = '';
+        }
+      });
+    });
+    document.getElementById('rez-banner-close').addEventListener('click', function() {
+      banner.classList.remove('visible');
+      document.documentElement.style.paddingTop = '';
+      sessionStorage.setItem('rez_banner_dismissed', '1');
+    });
+  })();
+  </script>
+</body>
+</html>

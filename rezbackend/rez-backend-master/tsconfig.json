@@ -1,0 +1,64 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "incremental": true,
+    "tsBuildInfoFile": "./.tsbuildinfo",
+    "strict": true,
+    // Launch-polish OBS-3: emit source maps so Sentry can resolve production
+    // stack traces to TypeScript line numbers instead of dist/.js
+    // pseudorandom offsets.
+    "sourceMap": true,
+    "inlineSources": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "types": ["node"],
+    "typeRoots": ["./node_modules/@types"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/models/*": ["./src/models/*"],
+      "@/controllers/*": ["./src/controllers/*"],
+      "@/routes/*": ["./src/routes/*"],
+      "@/middleware/*": ["./src/middleware/*"],
+      "@/services/*": ["./src/services/*"],
+      "@/utils/*": ["./src/utils/*"],
+      "@/config/*": ["./src/config/*"]
+    }
+  },
+  "ts-node": {
+    "files": true,
+    "transpileOnly": false
+  },
+  "include": [
+    "src/**/*",
+    "src/types/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tests",
+    // Exclude ALL __tests__ folders anywhere under src (per-feature test
+    // folders like src/events/__tests__, src/events/canonical/__tests__,
+    // etc.). Previously only the top-level `src/__tests__` was excluded,
+    // which made `tsc --noEmit` fail on every per-feature test file
+    // because `@types/jest` is not in the `types` array. Tests still
+    // typecheck at run time via ts-jest, which has its own type
+    // resolution — so excluding here is zero functional change, only a
+    // build-hygiene fix.
+    "src/__tests__",
+    "src/**/__tests__",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/scripts",
+    "src/seeds"
+  ]
+}

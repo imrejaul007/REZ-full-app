@@ -1,0 +1,10 @@
+{
+  "name": "rez-core-platform",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["services/*"],
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "build": "npm run build --workspaces"
+  }
+}

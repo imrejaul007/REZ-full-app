@@ -1,0 +1,34 @@
+# render.yaml for rez-ads-service
+# Marketing attribution tracking service
+services:
+  - type: web
+    name: rez-ads-service
+    env: node
+    region: singapore
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4007"
+      - key: ADS_MONGO_URI
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: INTERNAL_SERVICE_KEY
+        sync: false
+      - key: REZ_TARGETING_SERVICE_URL
+        sync: false
+      - key: REZ_INTENT_GRAPH_URL
+        sync: false
+      - key: INTERNAL_SERVICE_TOKENS_JSON
+        sync: false

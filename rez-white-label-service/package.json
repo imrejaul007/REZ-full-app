@@ -1,0 +1,6 @@
+{
+  "name": "rez-white-label-service",
+  "version": "1.0.0",
+  "description": "White-label platform for partners",
+  "main": "src/index.ts"
+}

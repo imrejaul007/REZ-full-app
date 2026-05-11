@@ -1,0 +1,76 @@
+# CorpPerks Render Blueprint
+# Deploy all services with one click
+
+services:
+  # CorpPerks Gateway API
+  - type: web
+    name: corpperks-api
+    env: node
+    region: singapore
+    plan: starter
+    buildCommand: cd rez-corpperks-service && npm install
+    startCommand: cd rez-corpperks-service && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4013
+      - key: MONGODB_URI
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://admin.rez.money
+      - key: WALLET_SERVICE_URL
+        value: https://rez-wallet-service.onrender.com
+      - key: FINANCE_SERVICE_URL
+        value: https://rez-finance-service.onrender.com
+      - key: KARMA_SERVICE_URL
+        value: https://rez-karma-service.onrender.com
+
+  # Hotel Service
+  - type: web
+    name: corpperks-hotel
+    env: node
+    region: singapore
+    plan: starter
+    buildCommand: cd rez-hotel-service && npm install
+    startCommand: cd rez-hotel-service && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4011
+      - key: MAKCORPS_API_KEY
+        sync: false
+      - key: MAKCORPS_CLIENT_ID
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://admin.rez.money
+
+  # Procurement Service
+  - type: web
+    name: corpperks-procurement
+    env: node
+    region: singapore
+    plan: starter
+    buildCommand: cd rez-procurement-service && npm install
+    startCommand: cd rez-procurement-service && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4012
+      - key: NEXTABIZZ_API_KEY
+        sync: false
+      - key: NEXTABIZZ_CLIENT_ID
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://admin.rez.money
+
+  # Redis (for caching)
+  - type: redis
+    name: corpperks-redis
+    plan: starter
+    ipAllowList: []

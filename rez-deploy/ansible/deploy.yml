@@ -1,0 +1,358 @@
+# =============================================================================
+# REZ Platform - Ansible Deployment Playbook
+# =============================================================================
+# Deploys all 15 REZ microservices to target environment
+# Usage: ansible-playbook -i inventory.ini deploy.yml -e "env=production version=1.0.0"
+# =============================================================================
+
+---
+- name: Deploy REZ Platform Services
+  hosts: rez_servers
+  gather_facts: true
+  become: true
+  vars:
+    env: production
+    version: latest
+    deploy_path: /opt/rez
+    backup_path: /opt/rez/backups
+    log_path: /var/log/rez
+    docker_registry: registry.rez.app
+    backup_retention_days: 7
+    health_check_timeout: 120
+    health_check_interval: 5
+    health_check_retries: 24
+
+  tasks:
+    # =============================================================================
+    # Pre-deployment checks
+    # =============================================================================
+    - name: Verify target host connectivity
+      ansible.builtin.ping:
+
+    - name: Check if Docker is installed
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Check Docker daemon status
+      ansible.builtin.command: docker info
+      register: docker_info
+      changed_when: false
+      failed_when: false
+
+    - name: Display Docker version
+      ansible.builtin.debug:
+        msg: "Docker version: {{ docker_version.stdout }}"
+
+    - name: Ensure deployment directory exists
+      ansible.builtin.file:
+        path: "{{ deploy_path }}"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Ensure backup directory exists
+      ansible.builtin.file:
+        path: "{{ backup_path }}"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Ensure log directory exists
+      ansible.builtin.file:
+        path: "{{ log_path }}"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    # =============================================================================
+    # Create deployment facts
+    # =============================================================================
+    - name: Set deployment facts
+      ansible.builtin.set_fact:
+        deployment_tag: "{{ env }}-{{ version }}"
+        timestamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
+        services:
+          - name: rez-delivery-service
+            port: 3000
+            replicas: 2
+            min_replicas: 2
+            max_replicas: 10
+            cpu_limit: "500m"
+            memory_limit: "512Mi"
+          - name: rez-analytics-service
+            port: 3001
+            replicas: 2
+            min_replicas: 2
+            max_replicas: 8
+            cpu_limit: "1000m"
+            memory_limit: "1Gi"
+          - name: rez-payment-links-service
+            port: 3002
+            replicas: 2
+            min_replicas: 2
+            max_replicas: 10
+            cpu_limit: "500m"
+            memory_limit: "512Mi"
+          - name: rez-journey-service
+            port: 3003
+            replicas: 2
+            min_replicas: 2
+            max_replicas: 8
+            cpu_limit: "500m"
+            memory_limit: "512Mi"
+          - name: rez-automation-service
+            port: 3004
+            replicas: 2
+            min_replicas: 2
+            max_replicas: 6
+            cpu_limit: "500m"
+            memory_limit: "512Mi"
+          - name: rez-gdpr-service
+            port: 3005
+            replicas: 1
+            min_replicas: 1
+            max_replicas: 4
+            cpu_limit: "500m"
+            memory_limit: "512Mi"
+          - name: rez-validation-service
+            port: 3006
+            replicas: 2
+            min_replicas: 2
+            max_replicas: 10
+            cpu_limit: "500m"
+            memory_limit: "512Mi"
+          - name: rez-cohort-service
+            port: 3007
+            replicas: 2
+            min_replicas: 2
+            max_replicas: 6
+            cpu_limit: "500m"
+            memory_limit: "512Mi"
+          - name: rez-currency-service
+            port: 3008
+            replicas: 2
+            min_replicas: 2
+            max_replicas: 8
+            cpu_limit: "250m"
+            memory_limit: "256Mi"
+          - name: rez-invoice-service
+            port: 3009
+            replicas: 2
+            min_replicas: 2
+            max_replicas: 6
+            cpu_limit: "500m"
+            memory_limit: "512Mi"
+          - name: rez-menu-service
+            port: 3010
+            replicas: 2
+            min_replicas: 2
+            max_replicas: 10
+            cpu_limit: "500m"
+            memory_limit: "512Mi"
+          - name: rez-refund-service
+            port: 3011
+            replicas: 2
+            min_replicas: 2
+            max_replicas: 8
+            cpu_limit: "500m"
+            memory_limit: "512Mi"
+          - name: rez-tracking-service
+            port: 3012
+            replicas: 2
+            min_replicas: 2
+            max_replicas: 10
+            cpu_limit: "500m"
+            memory_limit: "512Mi"
+          - name: rez-websocket-hub
+            port: 3013
+            replicas: 3
+            min_replicas: 3
+            max_replicas: 20
+            cpu_limit: "1000m"
+            memory_limit: "1Gi"
+          - name: rez-rate-limit
+            port: 3014
+            replicas: 2
+            min_replicas: 2
+            max_replicas: 10
+            cpu_limit: "250m"
+            memory_limit: "256Mi"
+
+    # =============================================================================
+    # Pull Docker images
+    # =============================================================================
+    - name: Login to Docker registry
+      community.docker.docker_login:
+        registry: "{{ docker_registry }}"
+        username: "{{ docker_registry_user }}"
+        password: "{{ docker_registry_password }}"
+      when: docker_registry_user is defined and docker_registry_password is defined
+
+    - name: Pull Docker images for all services
+      community.docker.docker_image:
+        name: "{{ docker_registry }}/{{ item.name }}"
+        tag: "{{ version }}"
+        source: pull
+        force_source: true
+      loop: "{{ services }}"
+      register: image_pull_results
+      until: image_pull_results is succeeded
+      retries: 3
+      delay: 10
+
+    # =============================================================================
+    # Deploy each service
+    # =============================================================================
+    - name: Deploy each service
+      block:
+        - name: Create service directory
+          ansible.builtin.file:
+            path: "{{ deploy_path }}/{{ item.name }}"
+            state: directory
+            mode: '0755'
+
+        - name: Create .env file for {{ item.name }}
+          ansible.builtin.template:
+            src: templates/env.j2
+            dest: "{{ deploy_path }}/{{ item.name }}/.env"
+            mode: '0600'
+          vars:
+            service_name: "{{ item.name }}"
+            service_port: "{{ item.port }}"
+
+        - name: Create docker-compose.yml for {{ item.name }}
+          ansible.builtin.template:
+            src: templates/docker-compose.service.j2
+            dest: "{{ deploy_path }}/{{ item.name }}/docker-compose.yml"
+            mode: '0644'
+          vars:
+            service_name: "{{ item.name }}"
+            service_port: "{{ item.port }}"
+            service_cpu: "{{ item.cpu_limit }}"
+            service_memory: "{{ item.memory_limit }}"
+
+        - name: Create service backup
+          ansible.builtin.shell: |
+            if [ -f "{{ deploy_path }}/{{ item.name }}/docker-compose.yml" ]; then
+              cp {{ deploy_path }}/{{ item.name }}/docker-compose.yml {{ backup_path }}/{{ item.name }}-{{ timestamp }}.yml
+            fi
+          changed_when: true
+          failed_when: false
+
+        - name: Stop existing container for {{ item.name }}
+          community.docker.docker_container:
+            name: "{{ item.name }}"
+            state: stopped
+          failed_when: false
+
+        - name: Remove old container for {{ item.name }}
+          community.docker.docker_container:
+            name: "{{ item.name }}"
+            state: absent
+          failed_when: false
+
+        - name: Pull latest image for {{ item.name }}
+          community.docker.docker_image:
+            name: "{{ docker_registry }}/{{ item.name }}"
+            tag: "{{ version }}"
+            source: pull
+            force_source: true
+
+        - name: Start container for {{ item.name }}
+          community.docker.docker_container:
+            name: "{{ item.name }}"
+            image: "{{ docker_registry }}/{{ item.name }}:{{ version }}"
+            env_file: "{{ deploy_path }}/{{ item.name }}/.env"
+            state: started
+            restart_policy: always
+            recreate: false
+            networks:
+              - name: rez-network
+            ports:
+              - "{{ item.port }}:{{ item.port }}"
+            limits:
+              cpus: "{{ item.cpu_limit }}"
+              memory: "{{ item.memory_limit }}"
+            healthcheck:
+              test: ["CMD", "curl", "-f", "http://localhost:{{ item.port }}/health"]
+              interval: 30s
+              timeout: 10s
+              retries: 3
+              start_period: 30s
+          register: container_start
+
+        - name: Wait for {{ item.name }} to be healthy
+          ansible.builtin.wait_for:
+            host: "localhost"
+            port: "{{ item.port }}"
+            delay: "{{ health_check_interval }}"
+            timeout: "{{ health_check_timeout }}"
+            state: present
+          when: container_start is changed
+
+        - name: Verify {{ item.name }} health endpoint
+          ansible.builtin.uri:
+            url: "http://localhost:{{ item.port }}/health"
+            method: GET
+            status_code: 200
+          register: health_check
+          until: health_check.status == 200
+          retries: "{{ health_check_retries }}"
+          delay: "{{ health_check_interval }}"
+          changed_when: false
+
+        - name: Display deployment status for {{ item.name }}
+          ansible.builtin.debug:
+            msg: "Successfully deployed {{ item.name }} on port {{ item.port }}"
+
+      loop: "{{ services }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    # =============================================================================
+    # Post-deployment tasks
+    # =============================================================================
+    - name: Clean up old backups
+      ansible.builtin.shell: |
+        find {{ backup_path }} -type f -mtime +{{ backup_retention_days }} -delete
+        find {{ backup_path }} -type d -empty -delete
+      changed_when: true
+      failed_when: false
+
+    - name: Prune unused Docker resources
+      community.docker.docker_prune:
+        containers: true
+        images: true
+        volumes: false
+        networks: false
+      changed_when: true
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          ===================================================================
+          REZ Platform Deployment Complete
+          ===================================================================
+          Environment: {{ env }}
+          Version: {{ version }}
+          Deployment Tag: {{ deployment_tag }}
+          Timestamp: {{ timestamp }}
+          Deployed Services: {{ services | map(attribute='name') | list }}
+          ===================================================================
+
+# =============================================================================
+# Handlers for notifications
+# =============================================================================
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Restart docker daemon
+      ansible.builtin.service:
+        name: docker
+        state: restarted

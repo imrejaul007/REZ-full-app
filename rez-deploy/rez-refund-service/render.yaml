@@ -1,0 +1,56 @@
+# =============================================================================
+# REZ Refund Service - Render Deployment Configuration
+# =============================================================================
+
+services:
+  - type: web
+    name: rez-refund-service
+    env: docker
+    region: oregon
+    plan: pro
+
+    dockerfilePath: ./Dockerfile
+    dockerContext: ../
+
+    healthCheckPath: /health
+    healthCheckInterval: 30
+    healthCheckThreshold: 3
+
+    autoScaling:
+      minInstances: 2
+      maxInstances: 8
+      targetCPUPercent: 70
+      targetMemoryPercent: 75
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3011
+      - key: APP_NAME
+        value: rez-refund-service
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: RABBITMQ_URL
+        sync: false
+      - key: STRIPE_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+
+    diskMounts:
+      - mountPath: /var/log/rez
+        name: rez-logs
+        sizeGB: 5
+
+preDeployCommand: npm run migrate:production
+deploymentStrategy: rolling
+
+notifications:
+  slack:
+    url: https://hooks.slack.com/services/xxx
+    on: [failed, reactivated]

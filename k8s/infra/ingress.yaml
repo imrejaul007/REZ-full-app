@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rez-services
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - host: api.rez.money
+      http:
+        paths:
+          - path: /intent
+            pathType: Prefix
+            backend:
+              service:
+                name: intent-service
+                port:
+                  number: 4009
+          - path: /copilot
+            pathType: Prefix
+            backend:
+              service:
+                name: copilot
+                port:
+                  number: 4026
+          - path: /decision
+            pathType: Prefix
+            backend:
+              service:
+                name: decision-service
+                port:
+                  number: 4027
+          - path: /ads
+            pathType: Prefix
+            backend:
+              service:
+                name: ad-platform
+                port:
+                  number: 4028
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rez-secrets
+type: Opaque
+stringData:
+  redis-url: "redis://redis-master:6379"
+  mongodb-uri: "mongodb://mongo:27017"

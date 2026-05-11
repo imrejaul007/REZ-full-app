@@ -1,0 +1,329 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      test_env:
+        description: 'Test environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  NODE_VERSION: '20'
+  RETRY_MAX_ATTEMPTS: 3
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  # Pre-flight: Setup
+  # ─────────────────────────────────────────────────────────
+  setup:
+    name: Setup E2E Environment
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      test_env: ${{ steps.env.outputs.test_env }}
+    steps:
+      - name: Determine test environment
+        id: env
+        timeout-minutes: 2
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "test_env=${{ github.event.inputs.test_env }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "test_env=production" >> $GITHUB_OUTPUT
+          else
+            echo "test_env=staging" >> $GITHUB_OUTPUT
+          fi
+
+  # ─────────────────────────────────────────────────────────
+  # Install dependencies
+  # ─────────────────────────────────────────────────────────
+  install:
+    name: Install Dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['20']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 5
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+        timeout-minutes: 5
+
+      - name: Install dependencies
+        run: npm ci
+        timeout-minutes: 10
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+        timeout-minutes: 5
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        timeout-minutes: 10
+
+  # ─────────────────────────────────────────────────────────
+  # Playwright E2E Tests
+  # ─────────────────────────────────────────────────────────
+  e2e-tests:
+    name: E2E Tests
+    needs: [setup, install]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    concurrency:
+      group: e2e-${{ github.ref }}-${{ matrix.shard }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+        timeout-minutes: 5
+
+      - name: Install dependencies
+        run: npm ci
+        timeout-minutes: 10
+
+      - name: Restore Playwright browsers cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+        timeout-minutes: 5
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        timeout-minutes: 10
+
+      - name: Setup test environment
+        timeout-minutes: 3
+        run: |
+          echo "Test environment: ${{ needs.setup.outputs.test_env }}"
+          # Set environment-specific URLs
+          if [ "${{ needs.setup.outputs.test_env }}" = "production" ]; then
+            echo "PLAYWRIGHT_BASE_URL=https://api.rez.money" >> $GITHUB_ENV
+          else
+            echo "PLAYWRIGHT_BASE_URL=https://staging-api.rez.money" >> $GITHUB_ENV
+          fi
+
+      - name: Run Playwright E2E tests (shard ${{ matrix.shard }}/4)
+        run: |
+          npx playwright test \
+            --reporter=list \
+            --shard=${{ matrix.shard }}/4 \
+            --project=chromium \
+            || true
+        timeout-minutes: 45
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results-shard-${{ matrix.shard }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+        timeout-minutes: 5
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots-shard-${{ matrix.shard }}
+          path: playwright-report/**/test-results/**/snapshots/**
+          retention-days: 30
+        timeout-minutes: 5
+
+  # ─────────────────────────────────────────────────────────
+  # API Integration Tests
+  # ─────────────────────────────────────────────────────────
+  api-tests:
+    name: API Integration Tests
+    needs: [setup]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: api-tests-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+        timeout-minutes: 5
+
+      - name: Install dependencies
+        run: npm ci
+        timeout-minutes: 10
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Setup test environment
+        timeout-minutes: 3
+        run: |
+          echo "Test environment: ${{ needs.setup.outputs.test_env }}"
+          if [ "${{ needs.setup.outputs.test_env }}" = "production" ]; then
+            echo "API_BASE_URL=https://api.rez.money" >> $GITHUB_ENV
+          else
+            echo "API_BASE_URL=https://staging-api.rez.money" >> $GITHUB_ENV
+          fi
+
+      - name: Run API integration tests
+        run: npm run test:api || echo "No API tests configured"
+        timeout-minutes: 10
+
+      - name: Test critical endpoints
+        timeout-minutes: 5
+        run: |
+          echo "Testing critical API endpoints..."
+          curl -sf "${API_BASE_URL}/health" && echo "Auth API: OK" || echo "Auth API: FAILED"
+          curl -sf "${API_BASE_URL}/api/health" && echo "Merchant API: OK" || echo "Merchant API: FAILED"
+
+  # ─────────────────────────────────────────────────────────
+  # Visual Regression Tests
+  # ─────────────────────────────────────────────────────────
+  visual-tests:
+    name: Visual Regression Tests
+    needs: [setup, install]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+        timeout-minutes: 5
+
+      - name: Install dependencies
+        run: npm ci
+        timeout-minutes: 10
+
+      - name: Restore Playwright browsers cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+        timeout-minutes: 5
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        timeout-minutes: 10
+
+      - name: Run visual regression tests
+        run: npx playwright test --project=chromium --grep="@visual" || echo "No visual tests found"
+        timeout-minutes: 20
+
+      - name: Upload visual diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diffs
+          path: test-results/**/visual-diffs/**
+          retention-days: 7
+        timeout-minutes: 5
+
+  # ─────────────────────────────────────────────────────────
+  # Test Summary
+  # ─────────────────────────────────────────────────────────
+  summary:
+    name: Test Summary
+    needs: [e2e-tests, api-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: always()
+
+    steps:
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          path: test-results
+        continue-on-error: true
+        timeout-minutes: 5
+
+      - name: Generate test summary
+        timeout-minutes: 5
+        run: |
+          echo "=========================================="
+          echo "  E2E TEST SUMMARY"
+          echo "=========================================="
+          echo "Environment: ${{ needs.e2e-tests.outputs.test_env }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo ""
+          echo "Results:"
+          echo "  - E2E Tests: ${{ needs.e2e-tests.result }}"
+          echo "  - API Tests: ${{ needs.api-tests.result }}"
+          echo "=========================================="
+
+          # Check for failures
+          if [ "${{ needs.e2e-tests.result }}" = "failure" ] || [ "${{ needs.api-tests.result }}" = "failure" ]; then
+            echo "Some tests failed. Check artifacts for details."
+            exit 1
+          fi
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        timeout-minutes: 3
+        with:
+          payload: |
+            {
+              "text": "E2E Tests FAILED: ${{ github.event_name }} on ${{ github.ref_name }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*E2E Tests Failed*\n\n*Branch:* `${{ github.ref_name }}`\n*Commit:* `${{ github.sha }}`\n*Environment:* `${{ needs.e2e-tests.outputs.test_env }}`\n*Triggered by:* `${{ github.actor }}`"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

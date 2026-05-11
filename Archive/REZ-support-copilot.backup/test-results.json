@@ -1,0 +1,333 @@
+{
+  "timestamp": "2026-05-03T09:39:28.854Z",
+  "summary": {
+    "total": 46,
+    "passed": 44,
+    "failed": 2,
+    "accuracy": "95.7"
+  },
+  "results": [
+    {
+      "input": "I want to order biryani",
+      "expected": "ORDER",
+      "got": "ORDER",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Get me some chinese food",
+      "expected": "ORDER",
+      "got": "ORDER",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Order pizza for delivery",
+      "expected": "ORDER",
+      "got": "ORDER",
+      "confidence": 0.8,
+      "passed": true
+    },
+    {
+      "input": "I need dinner for family",
+      "expected": "ORDER",
+      "got": "ORDER",
+      "confidence": 0.8,
+      "passed": true
+    },
+    {
+      "input": "Book a table for 4 at 7pm",
+      "expected": "BOOK",
+      "got": "BOOK",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Reserve a table for tonight",
+      "expected": "BOOK",
+      "got": "BOOK",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Make a reservation for 2",
+      "expected": "BOOK",
+      "got": "BOOK",
+      "confidence": 0.8,
+      "passed": true
+    },
+    {
+      "input": "Find italian restaurants near me",
+      "expected": "SEARCH",
+      "got": "SEARCH",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Show me pizza places",
+      "expected": "SEARCH",
+      "got": "GREETING",
+      "confidence": 0.98,
+      "passed": false
+    },
+    {
+      "input": "Look for vegan options",
+      "expected": "SEARCH",
+      "got": "SEARCH",
+      "confidence": 0.8,
+      "passed": true
+    },
+    {
+      "input": "Pay via paytm",
+      "expected": "PAYMENT",
+      "got": "PAYMENT",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Payment failed",
+      "expected": "PAYMENT",
+      "got": "PAYMENT",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Refund my money",
+      "expected": "PAYMENT",
+      "got": "PAYMENT",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Where is my order",
+      "expected": "DELIVERY",
+      "got": "DELIVERY",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Track my delivery",
+      "expected": "DELIVERY",
+      "got": "DELIVERY",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "When will food arrive",
+      "expected": "DELIVERY",
+      "got": "DELIVERY",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Give 5 star review",
+      "expected": "FEEDBACK",
+      "got": "FEEDBACK",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "How was your experience",
+      "expected": "FEEDBACK",
+      "got": "FEEDBACK",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Share feedback",
+      "expected": "FEEDBACK",
+      "got": "FEEDBACK",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Cancel my order",
+      "expected": "CANCEL",
+      "got": "CANCEL",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "I changed my mind",
+      "expected": "CANCEL",
+      "got": "CANCEL",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Don't deliver anymore",
+      "expected": "CANCEL",
+      "got": "CANCEL",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "I am vegetarian",
+      "expected": "DIETARY",
+      "got": "DIETARY",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Any vegan options",
+      "expected": "DIETARY",
+      "got": "DIETARY",
+      "confidence": 0.7,
+      "passed": true
+    },
+    {
+      "input": "No onion garlic please",
+      "expected": "DIETARY",
+      "got": "DIETARY",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "What time do you open",
+      "expected": "OPENING_HOURS",
+      "got": "OPENING_HOURS",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Are you open now",
+      "expected": "OPENING_HOURS",
+      "got": "OPENING_HOURS",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "When do you close",
+      "expected": "OPENING_HOURS",
+      "got": "OPENING_HOURS",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Where are you located",
+      "expected": "LOCATION",
+      "got": "LOCATION",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Your address please",
+      "expected": "LOCATION",
+      "got": "LOCATION",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Google maps link",
+      "expected": "LOCATION",
+      "got": "LOCATION",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Call the restaurant",
+      "expected": "CONTACT",
+      "got": "CONTACT",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Manager phone number",
+      "expected": "CONTACT",
+      "got": "CONTACT",
+      "confidence": 0.7,
+      "passed": true
+    },
+    {
+      "input": "Email the support",
+      "expected": "CONTACT",
+      "got": "CONTACT",
+      "confidence": 0.7,
+      "passed": true
+    },
+    {
+      "input": "Use my loyalty points",
+      "expected": "LOYALTY",
+      "got": "LOYALTY",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Redeem rewards",
+      "expected": "LOYALTY",
+      "got": "LOYALTY",
+      "confidence": 0.7,
+      "passed": true
+    },
+    {
+      "input": "How many points do I have",
+      "expected": "LOYALTY",
+      "got": "LOYALTY",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Buy gift card",
+      "expected": "GIFT",
+      "got": "GIFT",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Send surprise to friend",
+      "expected": "GIFT",
+      "got": "GIFT",
+      "confidence": 0.7,
+      "passed": true
+    },
+    {
+      "input": "Birthday present delivery",
+      "expected": "GIFT",
+      "got": "GIFT",
+      "confidence": 0.7,
+      "passed": true
+    },
+    {
+      "input": "Food was cold",
+      "expected": "COMPLAINT",
+      "got": "COMPLAINT",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Order wrong item received",
+      "expected": "COMPLAINT",
+      "got": "COMPLAINT",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Bad service experience",
+      "expected": "COMPLAINT",
+      "got": "COMPLAINT",
+      "confidence": 0.7,
+      "passed": true
+    },
+    {
+      "input": "Change booking time",
+      "expected": "RESCHEDULE",
+      "got": "RESCHEDULE",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Move to tomorrow",
+      "expected": "RESCHEDULE",
+      "got": "RESCHEDULE",
+      "confidence": 0.98,
+      "passed": true
+    },
+    {
+      "input": "Postpone reservation",
+      "expected": "RESCHEDULE",
+      "got": "BOOK",
+      "confidence": 0.6,
+      "passed": false
+    }
+  ]
+}

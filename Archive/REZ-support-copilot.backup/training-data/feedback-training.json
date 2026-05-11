@@ -1,0 +1,225 @@
+{
+  "feedback_training": {
+    "conversations": [
+      {
+        "id": "conv_001",
+        "merchant_type": "restaurant",
+        "turns": [
+          {"role": "user", "text": "hi"},
+          {"role": "bot", "text": "Hello! Welcome to Paradise Restaurant. How can I help you today?"},
+          {"role": "user", "text": "I want to order biryani"},
+          {"role": "bot", "text": "Great choice! We have Hyderabadi Biryani ₹280 and Veg Biryani ₹220. Would you like either of these?"},
+          {"role": "user", "text": "the veg one please"},
+          {"role": "bot", "text": "Added Veg Biryani to your order. Anything else? Drinks, sides, or desserts?"},
+          {"role": "user", "text": "no that's all"},
+          {"role": "bot", "text": "Your Veg Biryani order is confirmed! Delivery in 35 mins. Track it anytime. Thank you!"}
+        ],
+        "resolved": true,
+        "sentiment": "positive",
+        "intent_sequence": ["GREETING", "ORDER", "ORDER_ITEM", "ORDER_CONFIRM", "CLOSE"]
+      },
+      {
+        "id": "conv_002",
+        "merchant_type": "hotel",
+        "turns": [
+          {"role": "user", "text": "book a room for tomorrow"},
+          {"role": "bot", "text": "I can help with room booking. What type of room do you need? We have Standard ₹2500, Deluxe ₹4000, Suite ₹6500."},
+          {"role": "user", "text": "deluxe for 2 nights"},
+          {"role": "bot", "text": "Deluxe Room for 2 nights = ₹8000 + taxes. Check-in tomorrow. Confirm booking?"},
+          {"role": "user", "text": "yes please"},
+          {"role": "bot", "text": "Booking confirmed! Deluxe Room, 2 nights. Check-in date, parking info sent. See you soon!"},
+          {"role": "user", "text": "can I get late checkout"},
+          {"role": "bot", "text": "Late checkout ₹500 extra. Want to add it?"},
+          {"role": "user", "text": "no that's fine"},
+          {"role": "bot", "text": "No late checkout added. You have standard 11am checkout. Enjoy your stay!"}
+        ],
+        "resolved": true,
+        "sentiment": "positive",
+        "intent_sequence": ["BOOK", "BOOK_DETAILS", "BOOK_CONFIRM", "LATE_CHECKOUT", "CANCEL"]
+      },
+      {
+        "id": "conv_003",
+        "merchant_type": "retail",
+        "turns": [
+          {"role": "user", "text": "exchange my shirt size M to L"},
+          {"role": "bot", "text": "I can help with exchange. Was this purchased in store or online?"},
+          {"role": "user", "text": "online"},
+          {"role": "bot", "text": "For online exchanges, share order ID. We offer free pickup or drop at store."},
+          {"role": "user", "text": "order #12345"},
+          {"role": "bot", "text": "Found order #12345. Size M Blue Shirt. Exchange to L confirmed. Pickup scheduled tomorrow 2-5pm. Ready in 3-5 days."}
+        ],
+        "resolved": true,
+        "sentiment": "neutral",
+        "intent_sequence": ["EXCHANGE", "ORDER_ID", "EXCHANGE_CONFIRM"]
+      },
+      {
+        "id": "conv_004",
+        "merchant_type": "restaurant",
+        "turns": [
+          {"role": "user", "text": "food is cold"},
+          {"role": "bot", "text": "Sorry for cold food! Order #123. Refund or reorder?"},
+          {"role": "user", "text": "refund"},
+          {"role": "bot", "text": "₹250 refund initiated. 5-7 business days to your original payment method."}
+        ],
+        "resolved": true,
+        "sentiment": "negative",
+        "intent_sequence": ["COMPLAINT", "RESOLUTION_CHOICE", "REFUND_REQUEST"]
+      },
+      {
+        "id": "conv_005",
+        "merchant_type": "salon",
+        "turns": [
+          {"role": "user", "text": "book haircut for tomorrow 4pm"},
+          {"role": "bot", "text": "Haircut with Rahul at 4pm tomorrow. ₹300. Confirm?"},
+          {"role": "user", "text": "can I get vegan products"},
+          {"role": "bot", "text": "Yes! We use Aveda vegan products. Noted for your appointment."},
+          {"role": "user", "text": "confirm booking"},
+          {"role": "bot", "text": "Booked! Haircut 4pm tomorrow with vegan products. See you then!"}
+        ],
+        "resolved": true,
+        "sentiment": "positive",
+        "intent_sequence": ["BOOK", "DIETARY", "BOOK_CONFIRM"]
+      },
+      {
+        "id": "conv_006",
+        "merchant_type": "pharmacy",
+        "turns": [
+          {"role": "user", "text": "order medicines for diabetes"},
+          {"role": "bot", "text": "For diabetic medicines, I need prescription upload. Can you share?"},
+          {"role": "user", "text": "uploaded already for previous order"},
+          {"role": "bot", "text": "Found your prescription on file. Which diabetic medicines do you need?"},
+          {"role": "user", "text": "Metformin 500mg 3 strips"},
+          {"role": "bot", "text": "Metformin 500mg x3 = ₹450. Delivery tomorrow by 10am. Confirm?"},
+          {"role": "user", "text": "yes"},
+          {"role": "bot", "text": "Ordered! Delivery scheduled. Keep prescription handy for verification."}
+        ],
+        "resolved": true,
+        "sentiment": "neutral",
+        "intent_sequence": ["ORDER", "PRESCRIPTION_CHECK", "ORDER_ITEM", "ORDER_CONFIRM"]
+      },
+      {
+        "id": "conv_007",
+        "merchant_type": "gym",
+        "turns": [
+          {"role": "user", "text": "join gym"},
+          {"role": "bot", "text": "Welcome! Memberships: Monthly ₹1500, Quarterly ₹4000, Annual ₹12000. Join fee ₹500 one-time. Which plan?"},
+          {"role": "user", "text": "annual plan"},
+          {"role": "bot", "text": "Annual plan ₹12000 + ₹500 join fee = ₹12500. Start date?"},
+          {"role": "user", "text": "start today"},
+          {"role": "bot", "text": "Confirmed! Annual membership from today. WiFi password: GymFit2024. Welcome aboard!"}
+        ],
+        "resolved": true,
+        "sentiment": "positive",
+        "intent_sequence": ["MEMBERSHIP", "PLAN_SELECT", "START_DATE", "CONFIRM"]
+      },
+      {
+        "id": "conv_008",
+        "merchant_type": "restaurant",
+        "turns": [
+          {"role": "user", "text": "find biryani places nearby"},
+          {"role": "bot", "text": "Found 3 biryani places: Paradise ₹280, Hyderabad House ₹250, Biryani Blues ₹320. Closest: Paradise 1.2km away."},
+          {"role": "user", "text": "order from Paradise"},
+          {"role": "bot", "text": "Paradise menu loaded. What would you like?"},
+          {"role": "user", "text": "full biryani family pack"},
+          {"role": "bot", "text": "Family Biryani Pack ₹650 (serves 4). Add anything else?"},
+          {"role": "user", "text": "that's it"},
+          {"role": "bot", "text": "Order confirmed! Paradise Family Pack ₹650. Delivery in 40 mins. Enjoy!"}
+        ],
+        "resolved": true,
+        "sentiment": "positive",
+        "intent_sequence": ["SEARCH", "ORDER", "ORDER_ITEM", "CLOSE"]
+      },
+      {
+        "id": "conv_009",
+        "merchant_type": "events",
+        "turns": [
+          {"role": "user", "text": "book 2 tickets for comedy show saturday"},
+          {"role": "bot", "text": "Comedy Night Saturday 8pm. ₹599 per ticket. 2 tickets = ₹1198. Book?"},
+          {"role": "user", "text": "yes"},
+          {"role": "bot", "text": "Tickets booked! QR codes sent. Show entry 7pm doors open. Enjoy the show!"}
+        ],
+        "resolved": true,
+        "sentiment": "positive",
+        "intent_sequence": ["BOOK", "CONFIRM"]
+      },
+      {
+        "id": "conv_010",
+        "merchant_type": "taxi",
+        "turns": [
+          {"role": "user", "text": "book cab to airport 6am tomorrow"},
+          {"role": "bot", "text": "Cab to airport tomorrow 6am. Sedan ₹450, SUV ₹650. Which?"},
+          {"role": "user", "text": "sedan"},
+          {"role": "bot", "text": "Sedan booked. Driver details at 5:45am. Airport drop ₹450. Confirm?"},
+          {"role": "user", "text": "yes pay by UPI"},
+          {"role": "bot", "text": "Booking confirmed! UPI payment. Driver arriving 5:45am. Safe travels!"}
+        ],
+        "resolved": true,
+        "sentiment": "positive",
+        "intent_sequence": ["BOOK", "CAR_TYPE", "PAYMENT", "CONFIRM"]
+      }
+    ]
+  },
+  "feedback_responses": {
+    "positive": [
+      "Great to hear! Anything else I can help with?",
+      "Wonderful! Enjoy your [product/service]!",
+      "Thanks for your order! Delivery details sent.",
+      "Perfect! Have a wonderful [day/evening/weekend]!",
+      "Order confirmed! Track anytime. Thank you!"
+    ],
+    "negative": [
+      "I'm sorry about your experience. Let me make it right.",
+      "I understand your frustration. Here's what I can do: [options]",
+      "Apologies for the inconvenience. Resolving now.",
+      "Let me escalate this to our team immediately.",
+      "Sorry for the trouble. Compensation options available."
+    ],
+    "neutral": [
+      "Got it. Processing your request.",
+      "Understood. Let me check that for you.",
+      "Noted. Give me a moment.",
+      "I see. Here's what I found.",
+      "Understood. Is there anything else you need?"
+    ],
+    "confused": [
+      "I want to make sure I understand. Did you mean [rephrase]?",
+      "I can help with that. Could you clarify [question]?",
+      "Not sure I got that. Try saying it differently?",
+      "I can help with orders, bookings, and more. What would you like?"
+    ]
+  },
+  "fallback_responses": [
+    "I'm not sure I understand. Try: 'order food', 'book table', 'track order', or 'contact support'.",
+    "I can help with orders, bookings, complaints, and general questions. What do you need?",
+    "Let me connect you to support for this. One moment.",
+    "I can help with food orders, table reservations, delivery tracking, and more. How can I help?",
+    "Sorry, I didn't get that. Try: 'order [item]' or 'book [service]'."
+  ],
+  "edge_cases": [
+    {"input": "xyz abc 123 nonsense", "response": "I'm not sure I understood. Try 'order food', 'book table', or 'help'."},
+    {"input": "/cancel order", "response": "To cancel, say 'cancel my order' and I'll help."},
+    {"input": "算了不要了", "response": "I see you're writing in Chinese. I currently support English. Please try again in English or type 'help' for options."},
+    {"input": "WHAT THE HELL IS WRONG WITH YOUR SERVICE", "response": "I apologize for the frustration. Let me help right away. What happened?"},
+    {"input": "I'm crying right now", "response": "I'm so sorry to hear that. Let me help. What happened?"},
+    {"input": "🥺", "response": "I understand. How can I help make things better?"},
+    {"input": "ok ok ok ok ok", "response": "Got it! What would you like to order?"},
+    {"input": "...", "response": "Still here! Say 'help' for options or 'order [item] to place an order."},
+    {"input": "n", "response": "Need more help? Try 'order', 'book', 'track', or 'help'."},
+    {"input": "yes", "response": "Yes! Confirming your request now."}
+  ],
+  "intent_confidence_thresholds": {
+    "ORDER": {"threshold": 0.6, "fallback": "search"},
+    "BOOK": {"threshold": 0.6, "fallback": "enquire"},
+    "SEARCH": {"threshold": 0.5, "fallback": "enquire"},
+    "CANCEL": {"threshold": 0.7, "fallback": "complaint"},
+    "COMPLAINT": {"threshold": 0.5, "fallback": "support"},
+    "PAYMENT": {"threshold": 0.6, "fallback": "enquire"}
+  },
+  "metadata": {
+    "conversations": 10,
+    "feedback_responses": 50,
+    "edge_cases": 11,
+    "created": "2026-05-02",
+    "version": "1.1"
+  }
+}

@@ -1,0 +1,432 @@
+# render.yaml.master - ReZ Ecosystem Master Render Configuration Template
+# ================================================================
+#
+# This is the master template for all ReZ services deployed on Render.
+# Copy this file to each service directory and customize as needed.
+#
+# Template Version: 1.0.0
+# Last Updated: 2026-05-11
+#
+# ================================================================
+
+# ---------------------------------------------------------------------------
+# SERVICE CONFIGURATION
+# ---------------------------------------------------------------------------
+# Each service must define its own services array. This template shows all
+# available options. Remove inapplicable options for your service.
+
+services:
+  # -------------------------------------------------------------------------
+  # NODE.JS SERVICE EXAMPLE
+  # -------------------------------------------------------------------------
+  - type: web
+    name: SERVICE_NAME
+    env: node
+    region: oregon
+    plan: free
+
+    # Build configuration
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+
+    # Health check endpoint
+    healthCheckPath: /health
+
+    # Auto-scaling (optional)
+    scaling:
+      minInstances: 1
+      maxInstances: 3
+      targetMemoryPercent: 70
+      targetCPUPercent: 80
+
+    # Environment variables
+    envVars:
+      # Application settings
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: LOG_LEVEL
+        value: info
+
+      # Secrets (sync: false = managed in Render Dashboard)
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: INTERNAL_API_KEY
+        sync: false
+
+      # Generated secrets (Render creates random values)
+      - key: SESSION_SECRET
+        generateValue: true
+
+      # Service-specific configuration
+      - key: SERVICE_CONFIG
+        fromGroup: SERVICE_ENV_GROUP
+
+    # Custom headers
+    headers:
+      - path: /*
+        name: Security Headers
+        value: |
+          X-Content-Type-Options: nosniff
+          X-Frame-Options: DENY
+          X-XSS-Protection: 1; mode=block
+          Referrer-Policy: strict-origin-when-cross-origin
+          Content-Security-Policy: default-src 'self'
+
+    # Number of build commands to cache (optional)
+    cacheCommandTimeout: 600
+
+  # -------------------------------------------------------------------------
+  # DOCKER SERVICE EXAMPLE
+  # -------------------------------------------------------------------------
+  - type: web
+    name: SERVICE_NAME_DOCKER
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+
+    region: oregon
+    plan: starter
+
+    healthCheckPath: /health
+    port: 8080
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+
+    scaling:
+      minInstances: 1
+      maxInstances: 5
+      targetMemoryPercent: 60
+      targetCPUPercent: 70
+
+  # -------------------------------------------------------------------------
+  # BACKGROUND WORKER EXAMPLE
+  # -------------------------------------------------------------------------
+  - type: worker
+    name: SERVICE_NAME_WORKER
+    env: node
+    region: oregon
+    plan: starter
+
+    buildCommand: npm ci && npm run build
+    startCommand: npm run worker
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REDIS_URL
+        sync: false
+      - key: JOB_QUEUE_URL
+        sync: false
+
+    scaling:
+      minInstances: 1
+      maxInstances: 3
+      targetMemoryPercent: 80
+      targetCPUPercent: 90
+
+  # -------------------------------------------------------------------------
+  # CRON JOB EXAMPLE
+  # -------------------------------------------------------------------------
+  - type: cron
+    name: SERVICE_NAME_CRON
+    env: node
+    region: oregon
+    plan: starter
+    schedule: "0 * * * *"
+
+    buildCommand: npm ci && npm run build
+    startCommand: npm run cron
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+
+# ---------------------------------------------------------------------------
+# DATABASE CONFIGURATION
+# ---------------------------------------------------------------------------
+# PostgreSQL Database
+databases:
+  - name: SERVICE_NAME-db
+    plan: starter
+    databaseName: service_name_db
+    ipAllowList: []
+    # postgresVersion: 15
+
+  # PostgreSQL with auto-suspend disabled
+  # - name: SERVICE_NAME-db-persistent
+  #   plan: starter
+  #   databaseName: service_name_db
+  #   ipAllowList: []
+  #   autoSuspendTimeout: -1
+
+# ---------------------------------------------------------------------------
+# KEY-VALUE STORE (Redis)
+# ---------------------------------------------------------------------------
+# Uncomment if your service needs Redis
+# redis:
+#   - name: SERVICE_NAME-redis
+#     plan: starter
+#     ipAllowList: []
+
+# ---------------------------------------------------------------------------
+# DISK VOLUMES
+# ---------------------------------------------------------------------------
+# Uncomment for persistent disk storage
+# disks:
+#   - name: SERVICE_NAME-storage
+#     mountPath: /data
+#     sizeGB: 10
+#     plan: starter
+
+# ---------------------------------------------------------------------------
+# ENVIRONMENT GROUPS
+# ---------------------------------------------------------------------------
+# Environment groups allow sharing environment variables across services
+# Create these in Render Dashboard > Environment Groups
+#
+# Groups to create in Render Dashboard:
+#
+# REZ_CORE_CONFIG:
+#   - CORE_API_URL
+#   - CORE_AUTH_TOKEN
+#   - CORE_WEBHOOK_SECRET
+#
+# REZ_DATABASE_CONFIG:
+#   - DATABASE_POOL_SIZE
+#   - DATABASE_TIMEOUT
+#
+# REZ_REDIS_CONFIG:
+#   - REDIS_MAX_RETRIES
+#   - REDIS_RETRY_DELAY
+#
+# REZ_EXTERNAL_SERVICES:
+#   - PAYMENT_GATEWAY_URL
+#   - SMS_PROVIDER_URL
+#   - EMAIL_PROVIDER_URL
+#
+# REZ_MONITORING:
+#   - SENTRY_DSN
+#   - DATADOG_API_KEY
+#   - LOGDNA_KEY
+
+# ---------------------------------------------------------------------------
+# SERVICE-SPECIFIC CONFIGURATIONS
+# ---------------------------------------------------------------------------
+
+# -------------------------------------------------------------------------
+# API Gateway
+# -------------------------------------------------------------------------
+# - type: web
+#   name: rez-api-gateway
+#   runtime: docker
+#   dockerfilePath: ./Dockerfile
+#   plan: starter
+#   healthCheckPath: /health
+#   envVars:
+#     - key: MONOLITH_URL
+#       sync: false
+#     - key: BACKEND_URL
+#       sync: false
+#     - key: AUTH_SERVICE_URL
+#       sync: false
+#     - key: MERCHANT_SERVICE_URL
+#       sync: false
+#     - key: FINANCE_SERVICE_URL
+#       sync: false
+
+# -------------------------------------------------------------------------
+# Authentication Service
+# -------------------------------------------------------------------------
+# - type: web
+#   name: rez-auth-service
+#   env: node
+#   plan: starter
+#   buildCommand: npm ci && npm run build
+#   startCommand: npm start
+#   healthCheckPath: /health
+#   envVars:
+#     - key: JWT_SECRET
+#       generateValue: true
+#     - key: JWT_EXPIRY
+#       value: "24h"
+#     - key: REFRESH_TOKEN_EXPIRY
+#       value: "7d"
+#     - key: MONGODB_URI
+#       sync: false
+
+# -------------------------------------------------------------------------
+# Analytics/Ingestion Service
+# -------------------------------------------------------------------------
+# - type: web
+#   name: rez-analytics-service
+#   env: node
+#   plan: starter
+#   buildCommand: npm ci && npm run build
+#   startCommand: npm start
+#   healthCheckPath: /health
+#   scaling:
+#     minInstances: 1
+#     maxInstances: 5
+#   envVars:
+#     - key: KAFKA_BROKERS
+#       sync: false
+#     - key: CLICKHOUSE_URL
+#       sync: false
+
+# -------------------------------------------------------------------------
+# ML/AI Services
+# -------------------------------------------------------------------------
+# - type: web
+#   name: rez-ml-service
+#   env: python
+#   plan: starter
+#   buildCommand: pip install -r requirements.txt
+#   startCommand: gunicorn app:app -w 4 -k uvicorn.workers.UvicornWorker
+#   healthCheckPath: /health
+#   scaling:
+#     minInstances: 1
+#     maxInstances: 3
+#     targetMemoryPercent: 70
+#     targetCPUPercent: 80
+#   envVars:
+#     - key: MODEL_PATH
+#       sync: false
+#     - key: REDIS_URL
+#       sync: false
+#     - key: GPU_ENABLED
+#       value: "false"
+
+# -------------------------------------------------------------------------
+# WebSocket Service
+# -------------------------------------------------------------------------
+# - type: web
+#   name: rez-websocket-service
+#   runtime: docker
+#   dockerfilePath: ./Dockerfile
+#   plan: starter
+#   healthCheckPath: /health
+#   envVars:
+#     - key: REDIS_URL
+#       sync: false
+#     - key: ALLOWED_ORIGINS
+#       value: "*"
+
+# -------------------------------------------------------------------------
+# Notification Service
+# -------------------------------------------------------------------------
+# - type: web
+#   name: rez-notification-service
+#   env: node
+#   plan: starter
+#   buildCommand: npm ci && npm run build
+#   startCommand: npm start
+#   healthCheckPath: /health
+#   envVars:
+#     - key: SMTP_HOST
+#       sync: false
+#     - key: SMTP_USER
+#       sync: false
+#     - key: SMTP_PASSWORD
+#       sync: false
+#     - key: SMS_PROVIDER_API_KEY
+#       sync: false
+#     - key: PUSH_NOTIFICATION_KEY
+#       sync: false
+
+# -------------------------------------------------------------------------
+# Payment Service
+# -------------------------------------------------------------------------
+# - type: web
+#   name: rez-payment-service
+#   env: node
+#   plan: starter
+#   buildCommand: npm ci && npm run build
+#   startCommand: npm start
+#   healthCheckPath: /health
+#   scaling:
+#     minInstances: 1
+#     maxInstances: 3
+#   envVars:
+#     - key: PAYMENT_GATEWAY_API_KEY
+#       sync: false
+#     - key: PAYMENT_GATEWAY_MERCHANT_ID
+#       sync: false
+#     - key: STRIPE_SECRET_KEY
+#       sync: false
+
+# ---------------------------------------------------------------------------
+# DEPLOYMENT NOTES
+# ---------------------------------------------------------------------------
+#
+# 1. SERVICE NAMING CONVENTION:
+#    - Use kebab-case: rez-api-gateway, rez-auth-service
+#    - Include service type if ambiguous: rez-merchant-api, rez-customer-api
+#
+# 2. REGION SELECTION:
+#    - oregon (us-west-2): US West coast, closest to ReZ HQ
+#    - ohio (us-east-1): US East coast
+#    - ireland (eu-west-1): Europe
+#    - singapore (ap-southeast-1): Asia Pacific
+#
+# 3. PLAN SELECTION:
+#    - free: Development, testing (no HTTPS custom domains)
+#    - starter: Production with basic resources ($7/month)
+#    - starter-plus: Production with better resources ($15/month)
+#    - pro: Production with auto-scaling ($25/month)
+#
+# 4. SCALING:
+#    - Start with minInstances: 1 for cost efficiency
+#    - Increase maxInstances based on expected load
+#    - Use targetMemoryPercent and targetCPUPercent for auto-scaling triggers
+#
+# 5. HEALTH CHECKS:
+#    - All services MUST implement /health endpoint
+#    - Return 200 OK when service is healthy
+#    - Return 503 when service is unhealthy
+#
+# 6. ENVIRONMENT VARIABLES:
+#    - Use sync: false for all secrets
+#    - Use generateValue: true for new random secrets
+#    - Use fromGroup for shared configuration
+#
+# 7. SECURITY:
+#    - Enable security headers for all web services
+#    - Use CORS configuration for API services
+#    - Never commit secrets to version control
+#
+# 8. DEPLOYMENT:
+#    - Connect GitHub repository to Render
+#    - Enable auto-deploy on main branch
+#    - Use deploy hooks for zero-downtime deployments
+#
+# ---------------------------------------------------------------------------
+# CUSTOMIZATION CHECKLIST
+# ---------------------------------------------------------------------------
+#
+# Before deploying a new service, customize these values:
+#
+# [ ] Change SERVICE_NAME to your actual service name
+# [ ] Update buildCommand if different from npm
+# [ ] Update startCommand if different from npm start
+# [ ] Set correct PORT number for your service
+# [ ] Add all required environment variables
+# [ ] Configure scaling based on expected traffic
+# [ ] Add database configuration if needed
+# [ ] Update healthCheckPath if different from /health
+# [ ] Set correct region for your target audience
+# [ ] Select appropriate plan based on requirements
+#
+# ---------------------------------------------------------------------------

@@ -1,0 +1,335 @@
+groups:
+  - name: rez-availability
+    interval: 30s
+    rules:
+      # ─── Service Availability ───────────────────────────────────────────────
+      - alert: ServiceDown
+        expr: up{job=~"rez.*|wallet.*|payment.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been down for more than 1 minute"
+          runbook_url: "https://wiki.rez.money/runbooks/service-down"
+          dashboard_url: "https://grafana.rez.money/d/rez-services"
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{job=~"rez.*",status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job=~"rez.*"}[5m]))
+          ) > 0.01
+        for: 2m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 1%)"
+          runbook_url: "https://wiki.rez.money/runbooks/high-error-rate"
+          dashboard_url: "https://grafana.rez.money/d/rez-api-dashboard"
+
+  - name: rez-latency
+    interval: 30s
+    rules:
+      # ─── Latency Alerts ────────────────────────────────────────────────────
+      - alert: HighLatencyP99
+        expr: |
+          histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=~"rez.*"}[5m])) by (le, job)) > 2
+        for: 5m
+        labels:
+          severity: warning
+          category: latency
+        annotations:
+          summary: "High p99 latency on {{ $labels.job }}"
+          description: "p99 latency is {{ $value | humanizeDuration }} (threshold: 2s)"
+          runbook_url: "https://wiki.rez.money/runbooks/high-latency"
+          dashboard_url: "https://grafana.rez.money/d/rez-services"
+
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~"rez.*"}[5m])) by (le, job)) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: latency
+        annotations:
+          summary: "High p95 latency on {{ $labels.job }}"
+          description: "p95 latency is {{ $value | humanizeDuration }} (threshold: 1s)"
+          runbook_url: "https://wiki.rez.money/runbooks/high-latency"
+
+      - alert: PaymentLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(payment_gateway_duration_seconds_bucket[5m])) by (le, gateway)) > 5
+        for: 5m
+        labels:
+          severity: warning
+          category: latency
+          service: payments
+        annotations:
+          summary: "Payment gateway {{ $labels.gateway }} latency exceeds 5s"
+          description: "Gateway p95 latency is {{ $value | humanizeDuration }}"
+          runbook_url: "https://wiki.rez.money/runbooks/payment-latency"
+          dashboard_url: "https://grafana.rez.money/d/rez-finance"
+
+  - name: rez-finance
+    interval: 30s
+    rules:
+      # ─── Payment Alerts ────────────────────────────────────────────────────
+      - alert: PaymentFailureRateHigh
+        expr: |
+          (
+            sum(rate(payment_total{status="failed"}[5m]))
+            /
+            sum(rate(payment_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          category: finance
+          service: payments
+        annotations:
+          summary: "Payment failure rate exceeds 5%"
+          description: "Payment failure rate is {{ $value | humanizePercentage }}"
+          runbook_url: "https://wiki.rez.money/runbooks/payment-failure"
+          dashboard_url: "https://grafana.rez.money/d/rez-finance"
+
+      - alert: WalletServiceDown
+        expr: up{job="wallet-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: finance
+          service: wallet
+        annotations:
+          summary: "Wallet service is down"
+          description: "Wallet service has been unreachable for 1 minute"
+          runbook_url: "https://wiki.rez.money/runbooks/wallet-service-down"
+          dashboard_url: "https://grafana.rez.money/d/rez-finance"
+
+      - alert: BBPSFailureRateHigh
+        expr: |
+          (
+            sum(rate(bbps_requests_total{status=~"4..|5.."}[5m]))
+            /
+            sum(rate(bbps_requests_total[5m]))
+          ) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          category: finance
+          service: bbps
+        annotations:
+          summary: "BBPS gateway error rate exceeds 10%"
+          description: "BBPS error rate is {{ $value | humanizePercentage }}"
+          runbook_url: "https://wiki.rez.money/runbooks/bbps-gateway"
+
+      - alert: WalletTransactionFailures
+        expr: |
+          sum(rate(wallet_transaction_failures_total[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: finance
+          service: wallet
+        annotations:
+          summary: "High wallet transaction failure rate"
+          description: "More than 10 wallet transaction failures per minute"
+          runbook_url: "https://wiki.rez.money/runbooks/wallet-errors"
+
+  - name: rez-queues
+    interval: 30s
+    rules:
+      # ─── Queue Alerts ──────────────────────────────────────────────────────
+      - alert: HighQueueBacklog
+        expr: bullmq_queue_length{status="waiting"} > 5000
+        for: 5m
+        labels:
+          severity: warning
+          category: queues
+        annotations:
+          summary: "High queue backlog on {{ $labels.queue }}"
+          description: "Queue has {{ $value }} waiting jobs (threshold: 5000)"
+          runbook_url: "https://wiki.rez.money/runbooks/high-queue-backlog"
+          dashboard_url: "https://grafana.rez.money/d/rez-api-dashboard"
+
+      - alert: QueueDLQGrowing
+        expr: increase(bullmq_dlq_length[1h]) > 100
+        for: 0m
+        labels:
+          severity: warning
+          category: queues
+        annotations:
+          summary: "Dead letter queue growing for {{ $labels.queue }}"
+          description: "{{ $value }} jobs moved to DLQ in the last hour"
+          runbook_url: "https://wiki.rez.money/runbooks/dlq-growth"
+
+  - name: rez-infrastructure
+    interval: 30s
+    rules:
+      # ─── Infrastructure Alerts ─────────────────────────────────────────────
+      - alert: HighMemoryUsage
+        expr: |
+          process_resident_memory_bytes{job=~"rez.*"} / 1024 / 1024 > 400
+        for: 5m
+        labels:
+          severity: warning
+          category: infrastructure
+        annotations:
+          summary: "High memory usage on {{ $labels.job }}"
+          description: "Memory usage is {{ $value | humanize }}MB (threshold: 400MB)"
+          runbook_url: "https://wiki.rez.money/runbooks/high-memory-usage"
+
+      - alert: HighCPUUsage
+        expr: |
+          100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 80
+        for: 10m
+        labels:
+          severity: warning
+          category: infrastructure
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | humanize }}% (threshold: 80%)"
+          runbook_url: "https://wiki.rez.money/runbooks/high-cpu"
+
+      - alert: DiskSpaceLow
+        expr: |
+          (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"}) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: infrastructure
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk {{ $labels.mountpoint }} has {{ $value | humanizePercentage }} free"
+          runbook_url: "https://wiki.rez.money/runbooks/disk-space"
+
+      - alert: RedisConnectionErrors
+        expr: |
+          sum(rate(redis_connection_errors_total[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: infrastructure
+          service: redis
+        annotations:
+          summary: "Redis connection errors detected"
+          description: "More than 10 Redis connection errors per minute"
+          runbook_url: "https://wiki.rez.money/runbooks/redis-errors"
+
+      - alert: MongoDBConnectionPoolExhausted
+        expr: |
+          (mongodb_pool_connections_total - mongodb_pool_connections_available) / mongodb_pool_connections_total > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          category: infrastructure
+          service: mongodb
+        annotations:
+          summary: "MongoDB connection pool nearly exhausted"
+          description: "Connection pool usage above 90%"
+          runbook_url: "https://wiki.rez.money/runbooks/db-connection-pool"
+
+  - name: rez-circuit-breaker
+    interval: 30s
+    rules:
+      # ─── Circuit Breaker Alerts ───────────────────────────────────────────
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_state{state="open"} == 1
+        for: 1m
+        labels:
+          severity: critical
+          category: resilience
+        annotations:
+          summary: "Circuit breaker OPEN for {{ $labels.service }}"
+          description: "Service {{ $labels.service }} is not accepting traffic"
+          runbook_url: "https://wiki.rez.money/runbooks/circuit-breaker"
+
+  - name: rez-ai
+    interval: 30s
+    rules:
+      # ─── AI/ReZ Mind Alerts ────────────────────────────────────────────────
+      - alert: LowIntentCaptureRate
+        expr: |
+          (
+            sum(rate(intent_capture_success_total[5m]))
+            /
+            sum(rate(intent_capture_total[5m]))
+          ) < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          category: ai
+          service: rez-mind
+        annotations:
+          summary: "Low intent capture rate"
+          description: "Intent capture success rate is {{ $value | humanizePercentage }} (threshold: 50%)"
+          runbook_url: "https://wiki.rez.money/runbooks/intent-capture"
+
+      - alert: MLModelAccuracyLow
+        expr: ml_model_accuracy < 0.7
+        for: 30m
+        labels:
+          severity: warning
+          category: ai
+          service: rez-mind
+        annotations:
+          summary: "Low ML model accuracy for {{ $labels.model }}"
+          description: "Model accuracy is {{ $value | humanizePercentage }} (threshold: 70%)"
+          runbook_url: "https://wiki.rez.money/runbooks/ml-accuracy"
+
+      - alert: DormantRevivalRateLow
+        expr: |
+          (
+            sum(rate(dormant_user_revived_total[1h]))
+            /
+            sum(rate(dormant_user_targeted_total[1h]))
+          ) < 0.2
+        for: 1h
+        labels:
+          severity: warning
+          category: ai
+          service: rez-mind
+        annotations:
+          summary: "Low dormant user revival rate"
+          description: "Revival rate is {{ $value | humanizePercentage }} (threshold: 20%)"
+          runbook_url: "https://wiki.rez.money/runbooks/dormant-revival"
+
+  # Recording Rules for Dashboard Optimization
+  - name: rez-recording
+    interval: 30s
+    rules:
+      - record: rez:service_availability:5m
+        expr: |
+          1 - (
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          )
+
+      - record: rez:http_requests_per_second:5m
+        expr: sum(rate(http_requests_total[5m])) by (job, method)
+
+      - record: rez:http_latency_p50:5m
+        expr: histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))
+
+      - record: rez:http_latency_p95:5m
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))
+
+      - record: rez:http_latency_p99:5m
+        expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))
+
+      - record: rez:payment_success_rate:5m
+        expr: |
+          sum(rate(payment_total{status="success"}[5m]))
+          /
+          sum(rate(payment_total[5m]))
+
+      - record: rez:wallet_balance_total
+        expr: sum(wallet_balance_total)
+
+      - record: rez:queue_depth
+        expr: sum(bullmq_queue_length) by (queue)

@@ -1,0 +1,89 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# top-most EditorConfig file
+root = true
+
+# Unix-style newlines with a newline ending every file
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+trim_trailing_whitespace = true
+
+# TypeScript, JavaScript, JSON, YAML, Markdown
+[*.{ts,tsx,js,jsx,json,yaml,yml}]
+indent_style = space
+indent_size = 2
+
+# Python
+[*.py]
+indent_style = space
+indent_size = 4
+
+# Shell scripts
+[*.sh]
+indent_style = space
+indent_size = 2
+
+# Dockerfile
+[Dockerfile]
+indent_style = space
+indent_size = 4
+
+# SQL
+[*.sql]
+indent_style = space
+indent_size = 2
+
+# XML
+[*.{xml,xsl}]
+indent_style = space
+indent_size = 2
+
+# CSS, SCSS, LESS
+[*.{css,scss,less}]
+indent_style = space
+indent_size = 2
+
+# HTML, JSX
+[*.{html,jsx}]
+indent_style = space
+indent_size = 2
+
+# Go
+[*.go]
+indent_style = tab
+indent_size = 4
+
+# Rust
+[*.rs]
+indent_style = space
+indent_size = 4
+
+# Makefiles
+[Makefile]
+indent_style = tab
+
+# Configuration files
+[*.{conf,config}]
+indent_style = space
+indent_size = 2
+
+# Environment files - do not trim whitespace (values may be sensitive)
+[.env*]
+trim_trailing_whitespace = false
+
+# Package files
+[package.json]
+indent_style = space
+indent_size = 2
+
+# Git commit messages
+[COMMIT_EDITMSG]
+insert_final_newline = false
+
+# Documentation
+[*.md]
+trim_trailing_whitespace = false
+indent_style = space
+indent_size = 2

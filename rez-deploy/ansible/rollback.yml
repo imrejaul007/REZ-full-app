@@ -1,0 +1,324 @@
+# =============================================================================
+# REZ Platform - Ansible Rollback Playbook
+# =============================================================================
+# Rolls back REZ microservices to a previous version
+# Usage: ansible-playbook -i inventory.ini rollback.yml -e "service=rez-delivery-service version=1.0.0"
+# =============================================================================
+
+---
+- name: Rollback REZ Platform Services
+  hosts: rez_servers
+  gather_facts: true
+  become: true
+  vars:
+    deploy_path: /opt/rez
+    backup_path: /opt/rez/backups
+    docker_registry: registry.rez.app
+    health_check_timeout: 120
+    health_check_interval: 5
+    health_check_retries: 24
+    default_rollback_count: 1
+
+  tasks:
+    # =============================================================================
+    # Pre-rollback validation
+    # =============================================================================
+    - name: Verify target host connectivity
+      ansible.builtin.ping:
+
+    - name: Validate rollback parameters
+      ansible.builtin.assert:
+        that:
+          - service is defined
+          - service in [
+              'rez-delivery-service',
+              'rez-analytics-service',
+              'rez-payment-links-service',
+              'rez-journey-service',
+              'rez-automation-service',
+              'rez-gdpr-service',
+              'rez-validation-service',
+              'rez-cohort-service',
+              'rez-currency-service',
+              'rez-invoice-service',
+              'rez-menu-service',
+              'rez-refund-service',
+              'rez-tracking-service',
+              'rez-websocket-hub',
+              'rez-rate-limit',
+              'all'
+            ]
+        fail_msg: "Invalid service name or not specified"
+        quiet: true
+
+    - name: Display rollback information
+      ansible.builtin.debug:
+        msg: |
+          ===================================================================
+          REZ Platform Rollback
+          ===================================================================
+          Service: {{ service | default('all') }}
+          Target Version: {{ version | default('previous') }}
+          Rollback Count: {{ rollback_count | default(default_rollback_count) }}
+          ===================================================================
+
+    # =============================================================================
+    # Get service information
+    # =============================================================================
+    - name: Get current container info
+      community.docker.docker_container_info:
+        name: "{{ item }}"
+      register: current_containers
+      failed_when: false
+      when: service == 'all' or service == item
+      loop:
+        - rez-delivery-service
+        - rez-analytics-service
+        - rez-payment-links-service
+        - rez-journey-service
+        - rez-automation-service
+        - rez-gdpr-service
+        - rez-validation-service
+        - rez-cohort-service
+        - rez-currency-service
+        - rez-invoice-service
+        - rez-menu-service
+        - rez-refund-service
+        - rez-tracking-service
+        - rez-websocket-hub
+        - rez-rate-limit
+
+    - name: Create rollback backup
+      ansible.builtin.shell: |
+        mkdir -p {{ backup_path }}/rollback-{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}
+
+        for service in rez-delivery-service rez-analytics-service rez-payment-links-service rez-journey-service rez-automation-service rez-gdpr-service rez-validation-service rez-cohort-service rez-currency-service rez-invoice-service rez-menu-service rez-refund-service rez-tracking-service rez-websocket-hub rez-rate-limit; do
+          if docker ps -a --filter "name=$service" --format "{{ '{{' }}.Names}}" | grep -q "$service"; then
+            docker commit "$service" "backup-$service-$(date +%Y%m%d-%H%M%S)"
+          fi
+        done
+      changed_when: true
+      when: service == 'all'
+
+    - name: Create backup for {{ service }}
+      ansible.builtin.shell: |
+        if docker ps -a --filter "name={{ service }}" --format "{{ '{{' }}.Names}}" | grep -q "{{ service }}"; then
+          docker commit "{{ service }}" "backup-{{ service }}-$(date +%Y%m%d-%H%M%S)"
+        fi
+      changed_when: true
+      when: service != 'all'
+
+    # =============================================================================
+    # List available backups
+    # =============================================================================
+    - name: List available backups
+      ansible.builtin.find:
+        path: "{{ backup_path }}"
+        patterns: "*.yml"
+        file_type: file
+      register: available_backups
+      changed_when: false
+
+    - name: Display available backups
+      ansible.builtin.debug:
+        var: available_backups.files
+      when: available_backups.files | length > 0
+
+    # =============================================================================
+    # Perform rollback for each service
+    # =============================================================================
+    - name: Rollback all services
+      block:
+        - name: Stop current container
+          community.docker.docker_container:
+            name: "{{ rollback_service }}"
+            state: stopped
+          failed_when: false
+
+        - name: Remove current container
+          community.docker.docker_container:
+            name: "{{ rollback_service }}"
+            state: absent
+          failed_when: false
+
+        - name: Pull previous image version
+          community.docker.docker_image:
+            name: "{{ docker_registry }}/{{ rollback_service }}"
+            tag: "{{ version }}"
+            source: pull
+            force_source: true
+          when: version is defined
+
+        - name: Get previous image tag
+          ansible.builtin.command: >
+            docker images {{ docker_registry }}/{{ rollback_service }} --format "{{ '{{' }}.Tag}" | head -n 2 | tail -n 1
+          register: previous_tag
+          changed_when: false
+          when: version is not defined
+
+        - name: Start container with previous version
+          community.docker.docker_container:
+            name: "{{ rollback_service }}"
+            image: "{{ docker_registry }}/{{ rollback_service }}:{{ version | default(previous_tag.stdout) }}"
+            state: started
+            restart_policy: always
+            networks:
+              - name: rez-network
+            healthcheck:
+              test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+              interval: 30s
+              timeout: 10s
+              retries: 3
+              start_period: 30s
+          register: rollback_container
+
+        - name: Wait for {{ rollback_service }} to be healthy
+          ansible.builtin.wait_for:
+            host: "localhost"
+            port: 3000
+            delay: "{{ health_check_interval }}"
+            timeout: "{{ health_check_timeout }}"
+            state: present
+          when: rollback_container is changed
+          failed_when: false
+
+        - name: Display rollback success for {{ rollback_service }}
+          ansible.builtin.debug:
+            msg: "Successfully rolled back {{ rollback_service }} to version {{ version | default(previous_tag.stdout) }}"
+
+      vars:
+        rollback_service: "{{ item }}"
+      loop:
+        - rez-delivery-service
+        - rez-analytics-service
+        - rez-payment-links-service
+        - rez-journey-service
+        - rez-automation-service
+        - rez-gdpr-service
+        - rez-validation-service
+        - rez-cohort-service
+        - rez-currency-service
+        - rez-invoice-service
+        - rez-menu-service
+        - rez-refund-service
+        - rez-tracking-service
+        - rez-websocket-hub
+        - rez-rate-limit
+      when: service == 'all'
+
+    - name: Rollback specific service
+      block:
+        - name: Get service port mapping
+          ansible.builtin.set_fact:
+            service_port_map:
+              rez-delivery-service: 3000
+              rez-analytics-service: 3001
+              rez-payment-links-service: 3002
+              rez-journey-service: 3003
+              rez-automation-service: 3004
+              rez-gdpr-service: 3005
+              rez-validation-service: 3006
+              rez-cohort-service: 3007
+              rez-currency-service: 3008
+              rez-invoice-service: 3009
+              rez-menu-service: 3010
+              rez-refund-service: 3011
+              rez-tracking-service: 3012
+              rez-websocket-hub: 3013
+              rez-rate-limit: 3014
+
+        - name: Stop current container
+          community.docker.docker_container:
+            name: "{{ service }}"
+            state: stopped
+          failed_when: false
+
+        - name: Remove current container
+          community.docker.docker_container:
+            name: "{{ service }}"
+            state: absent
+          failed_when: false
+
+        - name: Pull previous image version
+          community.docker.docker_image:
+            name: "{{ docker_registry }}/{{ service }}"
+            tag: "{{ version }}"
+            source: pull
+            force_source: true
+          when: version is defined
+
+        - name: Get previous image tag
+          ansible.builtin.command: >
+            docker images {{ docker_registry }}/{{ service }} --format "{{ '{{' }}.Tag}" | head -n 2 | tail -n 1
+          register: previous_tag
+          changed_when: false
+          when: version is not defined
+
+        - name: Start container with previous version
+          community.docker.docker_container:
+            name: "{{ service }}"
+            image: "{{ docker_registry }}/{{ service }}:{{ version | default(previous_tag.stdout) }}"
+            state: started
+            restart_policy: always
+            networks:
+              - name: rez-network
+            ports:
+              - "{{ service_port_map[service] }}:{{ service_port_map[service] }}"
+            healthcheck:
+              test: ["CMD", "curl", "-f", "http://localhost:{{ service_port_map[service] }}/health"]
+              interval: 30s
+              timeout: 10s
+              retries: 3
+              start_period: 30s
+          register: rollback_container
+
+        - name: Wait for {{ service }} to be healthy
+          ansible.builtin.wait_for:
+            host: "localhost"
+            port: "{{ service_port_map[service] }}"
+            delay: "{{ health_check_interval }}"
+            timeout: "{{ health_check_timeout }}"
+            state: present
+          when: rollback_container is changed
+          failed_when: false
+
+        - name: Verify rollback health
+          ansible.builtin.uri:
+            url: "http://localhost:{{ service_port_map[service] }}/health"
+            method: GET
+            status_code: 200
+          register: health_check
+          until: health_check.status == 200
+          retries: "{{ health_check_retries }}"
+          delay: "{{ health_check_interval }}"
+          changed_when: false
+          when: rollback_container is changed
+
+        - name: Display rollback success
+          ansible.builtin.debug:
+            msg: "Successfully rolled back {{ service }} to version {{ version | default(previous_tag.stdout) }}"
+
+      when: service != 'all'
+
+    # =============================================================================
+    # Post-rollback verification
+    # =============================================================================
+    - name: Get all container statuses
+      ansible.builtin.shell: |
+        docker ps --filter "name=rez-" --format "table {{ '{{' }}.Names}}\t{{ '{{' }}.Status}}\t{{ '{{' }}.Image}}"
+      register: container_status
+      changed_when: false
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          ===================================================================
+          REZ Platform Rollback Complete
+          ===================================================================
+          Service: {{ service | default('all') }}
+          Version: {{ version | default('previous') }}
+          Timestamp: {{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}
+          ===================================================================
+          Container Status:
+          {{ container_status.stdout }}
+          ===================================================================

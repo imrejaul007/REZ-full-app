@@ -1,0 +1,386 @@
+# REZ Loyalty Ecosystem - Complete Docker Compose
+# One-command deployment for all loyalty microservices
+
+version: '3.8'
+
+services:
+  # ========================================================================
+  # INFRASTRUCTURE
+  # ========================================================================
+
+  mongodb:
+    image: mongo:7.0
+    container_name: rez-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-password}
+      MONGO_INITDB_DATABASE: rez_main
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - rez-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: rez-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rez-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ========================================================================
+  # CORE LOYALTY SERVICES
+  # ========================================================================
+
+  profile-aggregator:
+    build:
+      context: ./rez-profile-aggregator-service
+      dockerfile: Dockerfile
+    container_name: rez-profile-aggregator
+    restart: unless-stopped
+    ports:
+      - "4025:4025"
+    environment:
+      NODE_ENV: production
+      PORT: 4025
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/rez_profile?authSource=admin
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      REZ_MIND_URL: ${REZ_MIND_URL:-http://host.docker.internal:4017}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4025/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  streak-service:
+    build:
+      context: ./rez-streak-service
+      dockerfile: Dockerfile
+    container_name: rez-streak-service
+    restart: unless-stopped
+    ports:
+      - "4026:4026"
+    environment:
+      NODE_ENV: production
+      PORT: 4026
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/rez_streak?authSource=admin
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4026/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  score-service:
+    build:
+      context: ./rez-score-service
+      dockerfile: Dockerfile
+    container_name: rez-score-service
+    restart: unless-stopped
+    ports:
+      - "4028:4028"
+    environment:
+      NODE_ENV: production
+      PORT: 4028
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/rez_score?authSource=admin
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4028/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  cross-merchant-service:
+    build:
+      context: ./rez-cross-merchant-service
+      dockerfile: Dockerfile
+    container_name: rez-cross-merchant-service
+    restart: unless-stopped
+    ports:
+      - "4027:4027"
+    environment:
+      NODE_ENV: production
+      PORT: 4027
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/rez_cross_merchant?authSource=admin
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4027/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  karma-loyalty-bridge:
+    build:
+      context: ./rez-karma-loyalty-bridge
+      dockerfile: Dockerfile
+    container_name: rez-karma-loyalty-bridge
+    restart: unless-stopped
+    ports:
+      - "4029:4029"
+    environment:
+      NODE_ENV: production
+      PORT: 4029
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/rez_bridge?authSource=admin
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4029/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ========================================================================
+  # SUPPORT SERVICES
+  # ========================================================================
+
+  event-bus:
+    build:
+      context: ./rez-event-bus
+      dockerfile: Dockerfile
+    container_name: rez-event-bus
+    restart: unless-stopped
+    ports:
+      - "4031:4031"
+    environment:
+      NODE_ENV: production
+      PORT: 4031
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4031/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  notifications-service:
+    build:
+      context: ./rez-notifications-service
+      dockerfile: Dockerfile
+    container_name: rez-notifications-service
+    restart: unless-stopped
+    ports:
+      - "4032:4032"
+    environment:
+      NODE_ENV: production
+      PORT: 4032
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/rez_notifications?authSource=admin
+      REDIS_URL: redis://redis:6379
+      FCM_SERVER_KEY: ${FCM_SERVER_KEY:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4032/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  webhook-service:
+    build:
+      context: ./rez-webhook-service
+      dockerfile: Dockerfile
+    container_name: rez-webhook-service
+    restart: unless-stopped
+    ports:
+      - "4034:4034"
+    environment:
+      NODE_ENV: production
+      PORT: 4034
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/rez_webhooks?authSource=admin
+      REDIS_URL: redis://redis:6379
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-change-me-in-production}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4034/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  loyalty-monitoring:
+    build:
+      context: ./rez-loyalty-monitoring
+      dockerfile: Dockerfile
+    container_name: rez-loyalty-monitoring
+    restart: unless-stopped
+    ports:
+      - "4030:4030"
+    environment:
+      NODE_ENV: production
+      PORT: 4030
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/rez_monitoring?authSource=admin
+      REDIS_URL: redis://redis:6379
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4030/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  identity-service:
+    build:
+      context: ./REZ-identity-service
+      dockerfile: Dockerfile
+    container_name: rez-identity-service
+    restart: unless-stopped
+    ports:
+      - "4033:4033"
+    environment:
+      NODE_ENV: production
+      PORT: 4033
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/rez_identity?authSource=admin
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4033/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ========================================================================
+  # DLQ SERVICE
+  # ========================================================================
+
+  dlq-service:
+    build:
+      context: ./rez-dlq-service
+      dockerfile: Dockerfile
+    container_name: rez-dlq-service
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/rez_dlq?authSource=admin
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rez-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ========================================================================
+  # NETWORKS & VOLUMES
+  # ========================================================================
+
+networks:
+  rez-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  redis_data:
+  rabbitmq_data:

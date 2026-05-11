@@ -1,0 +1,68 @@
+services:
+  - type: web
+    name: rez-auth-service
+    runtime: node
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: node dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: EXPOSE_DEV_OTP
+        value: "false"
+      # DATABASE
+      - key: MONGODB_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      # AUTH SECURITY (rotate these for production!)
+      - key: JWT_SECRET
+        sync: false
+        # Generate: openssl rand -hex 64
+      - key: JWT_REFRESH_SECRET
+        sync: false
+        # Generate: openssl rand -hex 64
+      - key: JWT_ADMIN_SECRET
+        sync: false
+        # Generate: openssl rand -hex 64
+      - key: JWT_MERCHANT_SECRET
+        sync: false
+        # Generate: openssl rand -hex 64
+      - key: INTERNAL_SERVICE_TOKENS_JSON
+        sync: false
+        # Format: {"auth-service": "token"}
+        # Generate: openssl rand -hex 32
+      # SECURITY KEYS
+      - key: OTP_HMAC_SECRET
+        sync: false
+        # Generate: openssl rand -base64 64
+      - key: OTP_TOTP_ENCRYPTION_KEY
+        sync: false
+        # Generate: openssl rand -hex 32
+      # TOKEN CONFIGURATION
+      - key: JWT_REFRESH_TTL_HOURS
+        value: "24"
+        # SECURITY: Reduced from 7 days to 24 hours
+      # NETWORK SECURITY
+      - key: ALLOWED_INTERNAL_IPS
+        sync: false
+        # Format: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+        # SECURITY: Configure for production!
+      # CORS & APP
+      - key: CORS_ORIGIN
+        sync: false
+      - key: APP_URL
+        sync: false
+      # EMAIL
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      # OBSERVABILITY
+      - key: SENTRY_DSN
+        sync: false
+      - key: OTEL_SERVICE_NAME
+        value: rez-auth-service
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        fromGroup: otlp-endpoint
+        sync: false

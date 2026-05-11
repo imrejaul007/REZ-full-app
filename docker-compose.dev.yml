@@ -1,0 +1,129 @@
+# ============================================================
+# REZ Ecosystem — Development Overrides
+# ============================================================
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# ============================================================
+
+services:
+  # ── Development: Hot-reload volumes for all services ──────
+
+  auth-api:
+    volumes:
+      - ./rez-auth-service/src:/app/src:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  merchant-api:
+    volumes:
+      - ./rez-merchant-service/src:/app/src:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  rendez-backend:
+    volumes:
+      - ./Rendez/rendez-backend/src:/app/src:rw
+      - ./Rendez/rendez-backend/prisma:/app/prisma:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  hotel-ota-api:
+    volumes:
+      - ./Hotel OTA/apps/api/src:/app/src:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  rez-intelligence-hub:
+    volumes:
+      - ./rez-intelligence-hub/src:/app/src:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  rez-intent-graph:
+    volumes:
+      - ./rez-intent-graph/src:/app/src:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  rez-personalization-engine:
+    volumes:
+      - ./rez-personalization-engine/src:/app/src:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  rez-targeting-engine:
+    volumes:
+      - ./rez-targeting-engine/src:/app/src:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  rez-action-engine:
+    volumes:
+      - ./rez-action-engine/src:/app/src:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  rez-scheduler-service:
+    volumes:
+      - ./rez-scheduler-service/src:/app/src:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  rez-automation-service:
+    volumes:
+      - ./rez-automation-service/src:/app/src:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  rez-corporate-service:
+    volumes:
+      - ./rez-corporate-service/src:/app/src:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  rez-feedback-service:
+    volumes:
+      - ./rez-feedback-service/src:/app/src:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  rez-stayown-service:
+    volumes:
+      - ./rez-stayown-service/src:/app/src:rw
+    environment:
+      LOG_LEVEL: debug
+      NODE_ENV: development
+
+  # ── Frontend: Hot-reload volumes ───────────────────────────
+
+  nextabizz-web:
+    volumes:
+      - ./nextabizz/apps/web/app:/app/app:rw
+      - ./nextabizz/apps/web/lib:/app/lib:rw
+      - ./nextabizz/apps/web/components:/app/components:rw
+      - ./nextabizz/apps/web/public:/app/public:rw
+
+  hotel-panel:
+    volumes:
+      - ./Hotel OTA/apps/hotel-panel/src:/app/src:rw
+      - ./Hotel OTA/apps/hotel-panel/public:/app/public:rw
+
+  rez-now:
+    volumes:
+      - ./rez-now/app:/app/app:rw
+      - ./rez-now/lib:/app/lib:rw
+      - ./rez-now/components:/app/components:rw
+      - ./rez-now/public:/app/public:rw
+      - ./rez-now/i18n:/app/i18n:rw

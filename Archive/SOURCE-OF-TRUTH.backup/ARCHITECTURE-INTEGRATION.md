@@ -1,0 +1,425 @@
+# ReZ Architecture Integration Guide
+
+This document details how all ReZ services connect and integrate with each other, with a focus on the new services.
+
+---
+
+## Table of Contents
+
+1. [System Overview](#system-overview)
+2. [Data Flow Diagrams](#data-flow-diagrams)
+3. [Service Integration Points](#service-integration-points)
+4. [Event Bus Architecture](#event-bus-architecture)
+5. [Security Integration](#security-integration)
+6. [Deployment Architecture](#deployment-architecture)
+
+---
+
+## System Overview
+
+### High-Level Architecture
+
+```
+                                    ┌─────────────────────────────────────────────────────────┐
+                                    │                    ReZ Mind                              │
+                                    │         (Intent Capture & Processing)                    │
+                                    │                                                          │
+                                    │   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
+                                    │   │   Intent    │  │   Pattern   │  │    AI       │    │
+                                    │   │  Capture    │  │   Analysis  │  │   Engine    │    │
+                                    │   └─────────────┘  └─────────────┘  └─────────────┘    │
+                                    └────────────────────────────┬────────────────────────────────┘
+                                                                 │
+                                                        Event Bus
+                                                             │
+        ┌───────────────────────────────────────────────────────┼────────────────────────────────────────────────────────┐
+        │                                                       │                                                        │
+        ▼                                                       ▼                                                        ▼
+┌───────────────┐                                    ┌──────────────────┐                                    ┌──────────────────┐
+│    User       │                                    │ insights-service │                                    │ automation-service│
+│   Interface   │◀───────────────────────────────────│                  │                                    │                  │
+│               │                                    │                  │                                    │                  │
+│  ┌─────────┐  │                                    │                  │                                    │                  │
+│  │ Copilot │  │                                    │                  │                                    │                  │
+│  │   UI    │  │                                    │                  │                                    │                  │
+│  └─────────┘  │                                    │                  │                                    │                  │
+└───────────────┘                                    └──────────────────┘                                    └──────────────────┘
+        ▲                                                       │
+        │                                                       │
+        │                                                       ▼
+        │                                              ┌──────────────────┐
+        │                                              │   PostgreSQL     │
+        │                                              │   insights_db    │
+        │                                              └──────────────────┘
+        │
+        │                                               ┌──────────────────┐
+        │                                              │   Analytics      │
+        └─────────────────────────────────────────────▶│     Service      │
+                                                        └──────────────────┘
+```
+
+### 17 Services Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                   ReZ Ecosystem                                                      │
+│                                                          17 Services                                                  │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                                       │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐   │
+│  │   Gateway   │───▶│  Auth Svc   │───▶│  User Svc   │───▶│  Order Svc  │───▶│ Payment Svc │───▶│  Wallet Svc │   │
+│  │   Service   │    │             │    │             │    │             │    │             │    │             │   │
+│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘   │
+│         │                                                                                                             │
+│         ▼                                                                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐   │
+│  │   ReZ Mind  │───▶│  Insights   │───▶│ Automation  │───▶│  Inventory  │───▶│  Analytics  │───▶│   Hotel     │   │
+│  │             │    │   Service   │    │   Service   │    │   Service   │    │   Service   │    │   Service   │   │
+│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘   │
+│         │              ▲               ▲                                                                      │       │
+│         │              │               │                                                                      ▼       │
+│         │              │               │                                                               ┌─────────────┐│
+│         │              │               │                                                               │  Booking   ││
+│         ▼              │               │                                                               │   Engine   ││
+│  ┌─────────────┐       │               │                                                               └─────────────┘│
+│  │  Copilot    │       │               │                                                                      │
+│  │    UI       │       │               │                                                                      │
+│  └─────────────┘       │               │                                                                      │
+│                        │               │                                                                      │
+│  ┌─────────────┐       │               │                                                                      │
+│  │  Analytics  │───────┴───────────────┴───────────────────────────────────────────────────────────────────────▶│
+│  │   Reports   │                                                                                                    │
+│  └─────────────┘                                                                                                    │
+│                                                                                                                       │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Data Flow Diagrams
+
+### Intent-to-Insight Flow
+
+```
+┌──────────┐    Intent     ┌──────────┐    Analysis    ┌───────────┐    Store    ┌────────────┐    Display    ┌──────────┐
+│  User    │──────────────▶│  ReZ     │──────────────▶│ Insights  │────────────▶│ PostgreSQL │──────────────▶│ Copilot  │
+│  Action  │               │  Mind    │               │  Service  │             │ insights_db│              │    UI    │
+└──────────┘               └──────────┘               └───────────┘             └────────────┘              └──────────┘
+     │                          │                           │                            │                        │
+     │                          │                           │                            │                        │
+     ▼                          ▼                           ▼                            ▼                        ▼
+User input              Intent captured             Insight generated           Persisted              User views insight
+text/speech             and processed              and formatted               securely               in dashboard
+```
+
+### Automation Trigger Flow
+
+```
+┌──────────┐    Event      ┌───────────┐    Match     ┌─────────────┐    Execute    ┌───────────┐    Notify    ┌──────────┐
+│  Source  │──────────────▶│  Event    │────────────▶│  Automation │──────────────▶│  Action    │─────────────▶│  User /  │
+│ Service  │               │    Bus    │             │   Service   │              │  Handler  │              │ External │
+└──────────┘               └───────────┘             └─────────────┘              └───────────┘              └──────────┘
+     │                          │                           │                            │                        │
+     │                          │                           │                            │                        │
+     ▼                          ▼                           ▼                            ▼                        ▼
+Order/Payment              Event routed              Rule matched,              Actions executed          User notified
+/Wallet/Hotel              to subscribers           conditions met             (webhook/email/etc)       or external API called
+```
+
+### Complete ReZ Mind Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                 ReZ Mind Pipeline                                                   │
+├─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                                     │
+│  ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐        │
+│  │  Intent  │─────▶│ Natural  │─────▶│ Context  │─────▶│ Pattern  │─────▶│   AI     │─────▶│ Response │        │
+│  │ Capture  │      │Language  │      │ Building │      │ Matching │      │ Generation│      │  Format  │        │
+│  │          │      │Processing│      │          │      │          │      │          │      │          │        │
+│  └──────────┘      └──────────┘      └──────────┘      └──────────┘      └──────────┘      └──────────┘        │
+│       │                                                         │               │                                │
+│       │                                                         │               │                                │
+│       ▼                                                         ▼               ▼                                │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                                           Event Bus                                                             │   │
+│  └────────────────────────────────────────────────────────────────────────────────────────────────────────────┘   │
+│       │                                                         │               │                                │
+│       ▼                                                         ▼               ▼                                │
+│  ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐                         │
+│  │  Order   │      │ Payment  │      │  Wallet  │      │Insights  │      │Automation│                         │
+│  │ Service  │      │ Service  │      │ Service  │      │ Service  │      │ Service  │                         │
+│  └──────────┘      └──────────┘      └──────────┘      └──────────┘      └──────────┘                         │
+│                                                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Service Integration Points
+
+### ReZ Mind Integration
+
+```
+                              ┌─────────────────────────────────────┐
+                              │              ReZ Mind               │
+                              │                                      │
+                              │   ┌────────────┐   ┌────────────┐   │
+                              │   │   Intent   │   │  Context   │   │
+                              │   │  Processing│   │  Manager   │   │
+                              │   └──────┬─────┘   └──────┬─────┘   │
+                              │          │                │         │
+                              │          └───────┬────────┘         │
+                              │                  │                    │
+                              │                  ▼                    │
+                              │          ┌────────────┐               │
+                              │          │   Output   │               │
+                              │          │  Generator │               │
+                              │          └──────┬─────┘               │
+                              └─────────────────┼─────────────────────┘
+                                                │
+                              ┌─────────────────┼─────────────────────┐
+                              │                 │                      │
+                              ▼                 ▼                      ▼
+                    ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+                    │   Event Bus   │   │ Insights Svc  │   │ Automation   │
+                    │               │   │               │   │    Svc       │
+                    │ intent.captured│  │ insight.generated│ │ rule.triggered│
+                    └──────────────┘   └──────────────┘   └──────────────┘
+```
+
+### insights-service Integration
+
+| Source | Event | Action |
+|--------|-------|--------|
+| ReZ Mind | `intent.processed` | Store generated insights |
+| ReZ Mind | `analysis.complete` | Store analysis results |
+| Analytics | `metric.anomaly` | Store anomaly alerts |
+| Copilot UI | `insight.read` | Update read status |
+| Copilot UI | `insight.dismissed` | Mark as dismissed |
+
+### automation-service Integration
+
+| Source | Event | Action |
+|--------|-------|--------|
+| Order Service | `order.created` | Trigger matching rules |
+| Order Service | `order.completed` | Trigger completion rules |
+| Order Service | `order.cancelled` | Trigger cancellation rules |
+| Payment Service | `payment.completed` | Trigger payment rules |
+| Payment Service | `payment.failed` | Trigger failure handling |
+| Wallet Service | `wallet.balance_changed` | Trigger balance rules |
+| Hotel Service | `hotel.booking.created` | Trigger hotel rules |
+| Hotel Service | `hotel.room.checked_in` | Trigger check-in rules |
+| Hotel Service | `hotel.room.checked_out` | Trigger check-out rules |
+| Insights Service | `insight.created` | Trigger insight rules |
+
+---
+
+## Event Bus Architecture
+
+### Message Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                               Event Bus                                      │
+│                                                                              │
+│  Publishers                              Subscribers                          │
+│  ────────────────────────────────────────────────────────────────────────   │
+│                                                                              │
+│  ┌─────────────┐                    ┌─────────────┐                         │
+│  │ Order Svc   │────────────────────│             │                         │
+│  └─────────────┘                    │             │                         │
+│                                      │             │                         │
+│  ┌─────────────┐                    │             │                         │
+│  │ Payment Svc │────────────────────│   Event     │                         │
+│  └─────────────┘                    │   Router    │────────────────────┐    │
+│                                      │             │                    │    │
+│  ┌─────────────┐                    │             │                    │    │
+│  │ Wallet Svc  │────────────────────│             │────────────────────│───▶│
+│  └─────────────┘                    │             │                    │    │
+│                                      │             │                    │    │
+│  ┌─────────────┐                    │             │                    │    │
+│  │ ReZ Mind    │────────────────────│             │────────────────────│───▶│
+│  └─────────────┘                    └─────────────┘                    │    │
+│                                                                              │
+│  ┌─────────────┐                                                          │
+│  │ Hotel Svc   │──────────────────────────────────────────────────────────▶│
+│  └─────────────┘                                                          │
+│                                                                              │
+│  ┌─────────────┐                                                          │
+│  │ Insights Svc│──────────────────────────────────────────────────────────▶│
+│  └─────────────┘                                                          │
+│                                                                              │
+│  ┌─────────────┐                                                          │
+│  │Automation Svc│◀─────────────────────────────────────────────────────────│
+│  └─────────────┘                                                          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Event Schema
+
+```typescript
+interface EventMessage {
+  eventId: string;           // UUID v4
+  eventType: string;         // e.g., "order.created"
+  source: string;            // Service name
+  timestamp: string;         // ISO 8601
+  version: string;           // Schema version
+  correlationId?: string;    // For tracing
+  causationId?: string;      // Original event ID
+  payload: object;           // Event-specific data
+  metadata?: {
+    userId?: string;
+    tenantId?: string;
+    tracing?: TracingInfo;
+  };
+}
+```
+
+### Event Routing Rules
+
+```
+Event Type Pattern                          →  Subscribers
+────────────────────────────────────────────────────────────────
+order.*                                      →  automation-service, analytics-service
+payment.*                                    →  automation-service, wallet-service, analytics-service
+wallet.*                                     →  automation-service, analytics-service
+intent.*                                     →  insights-service, analytics-service
+hotel.booking.*                              →  automation-service, analytics-service
+hotel.room.*                                 →  automation-service, analytics-service
+insight.*                                    →  automation-service, copilot-ui
+automation.*                                 →  logging-service
+```
+
+---
+
+## Security Integration
+
+### Authentication Flow
+
+```
+┌──────────┐    Request    ┌──────────┐    Validate    ┌──────────┐
+│  Client   │─────────────▶│ Gateway  │──────────────▶│  Auth    │
+│           │   + Token    │ Service  │    JWT        │ Service  │
+└──────────┘               └──────────┘               └──────────┘
+                                  │
+                                  │ Valid
+                                  ▼
+                          ┌──────────┐
+                          │  Route   │──────────▶ Target Service
+                          │ Request  │
+                          └──────────┘
+```
+
+### Service-to-Service Authentication
+
+```
+┌──────────────┐                          ┌──────────────┐
+│  Service A    │──── mTLS + JWT ────────▶│  Service B    │
+│               │◀───── Response ─────────│               │
+└──────────────┘                          └──────────────┘
+
+JWT Claims:
+{
+  "iss": "auth-service",
+  "sub": "service-id",
+  "aud": "target-service",
+  "scope": "read:orders write:payments",
+  "exp": 1704067200
+}
+```
+
+---
+
+## Deployment Architecture
+
+### Container Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Kubernetes Cluster                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │                        Namespace: rez-production                         ││
+│  │                                                                          ││
+│  │   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐     ││
+│  │   │ Gateway │  │  Auth   │  │  User   │  │ Order   │  │ Payment │     ││
+│  │   │   Pod   │  │   Pod   │  │   Pod   │  │   Pod   │  │   Pod   │     ││
+│  │   └─────────┘  └─────────┘  └─────────┘  └─────────┘  └─────────┘     ││
+│  │                                                                          ││
+│  │   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐     ││
+│  │   │ Wallet  │  │  ReZ    │  │Insights │  │Automate │  │Hotel    │     ││
+│  │   │   Pod   │  │  Mind   │  │   Pod   │  │   Pod   │  │   Pod   │     ││
+│  │   └─────────┘  └─────────┘  └─────────┘  └─────────┘  └─────────┘     ││
+│  │                                                                          ││
+│  │   ┌─────────────────────────────────────────────────────────────────┐   ││
+│  │   │                    PostgreSQL Cluster                            │   ││
+│  │   │   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐│   ││
+│  │   │   │Primary  │  │Replica 1│  │Replica 2│  │ Replica │  │Insights ││   ││
+│  │   │   │         │  │         │  │         │  │    3    │  │   DB    ││   ││
+│  │   │   └─────────┘  └─────────┘  └─────────┘  └─────────┘  └─────────┘│   ││
+│  │   └─────────────────────────────────────────────────────────────────┘   ││
+│  │                                                                          ││
+│  │   ┌─────────────────────────────────────────────────────────────────┐   ││
+│  │   │                      Redis Cluster                                │   ││
+│  │   │        ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐       │   ││
+│  │   │        │ Master  │  │Replica 1│  │Replica 2│  │Replica 3│      │   ││
+│  │   │        └─────────┘  └─────────┘  └─────────┘  └─────────┘       │   ││
+│  │   └─────────────────────────────────────────────────────────────────┘   ││
+│  │                                                                          ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Service Dependencies
+
+```
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                           Dependency Graph                                     │
+├───────────────────────────────────────────────────────────────────────────────┤
+│                                                                                │
+│   Gateway ──────┬────── Auth ────── User                                      │
+│        │       │                                                                 │
+│        │       └────── Order ──────┬────── Payment ─────── Wallet             │
+│        │                          │                           │               │
+│        │                          │                           │               │
+│        └────── ReZ Mind ──────────┴───────────────────────────┤               │
+│                │                              │                │               │
+│                │                              │                │               │
+│                └──────────┬───────────────────┴────────────────┘               │
+│                           │                                                    │
+│                           ▼                                                    │
+│               ┌───────────────────┐                                            │
+│               │    Event Bus      │                                            │
+│               └─────────┬─────────┘                                            │
+│                         │                                                      │
+│           ┌─────────────┼─────────────┐                                        │
+│           │             │             │                                        │
+│           ▼             ▼             ▼                                        │
+│   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                            │
+│   │  Insights    │ │  Automation  │ │  Analytics   │                            │
+│   │   Service    │ │   Service    │ │   Service    │                            │
+│   └──────────────┘ └──────────────┘ └──────────────┘                            │
+│                                                                                 │
+│   ┌──────────────┐                                                             │
+│   │    Hotel     │───────────────▶ Booking Engine                              │
+│   │   Service    │                                                             │
+│   └──────────────┘                                                             │
+│                                                                                 │
+└───────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0.0 | 2026-05-01 | Initial integration documentation |
+
+---
+
+*Last updated: 2026-05-01*

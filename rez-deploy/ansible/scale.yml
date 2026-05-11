@@ -1,0 +1,316 @@
+# =============================================================================
+# REZ Platform - Ansible Scale Playbook
+# =============================================================================
+# Scales REZ microservices up or down
+# Usage: ansible-playbook -i inventory.ini scale.yml -e "service=rez-delivery-service replicas=5"
+# =============================================================================
+
+---
+- name: Scale REZ Platform Services
+  hosts: rez_servers
+  gather_facts: true
+  become: true
+  vars:
+    deploy_path: /opt/rez
+    health_check_timeout: 60
+    health_check_interval: 5
+
+  tasks:
+    # =============================================================================
+    # Pre-scale validation
+    # =============================================================================
+    - name: Verify target host connectivity
+      ansible.builtin.ping:
+
+    - name: Validate scale parameters
+      ansible.builtin.assert:
+        that:
+          - service is defined
+          - replicas is defined
+          - replicas | int >= 0
+        fail_msg: "Both 'service' and 'replicas' parameters are required"
+        quiet: true
+
+    - name: Validate service name
+      ansible.builtin.assert:
+        that:
+          - service in [
+              'rez-delivery-service',
+              'rez-analytics-service',
+              'rez-payment-links-service',
+              'rez-journey-service',
+              'rez-automation-service',
+              'rez-gdpr-service',
+              'rez-validation-service',
+              'rez-cohort-service',
+              'rez-currency-service',
+              'rez-invoice-service',
+              'rez-menu-service',
+              'rez-refund-service',
+              'rez-tracking-service',
+              'rez-websocket-hub',
+              'rez-rate-limit',
+              'all'
+            ]
+        fail_msg: "Invalid service name"
+        quiet: true
+      when: service != 'all'
+
+    # =============================================================================
+    # Display scale information
+    # =============================================================================
+    - name: Display scale information
+      ansible.builtin.debug:
+        msg: |
+          ===================================================================
+          REZ Platform Scaling
+          ===================================================================
+          Service: {{ service | default('all') }}
+          Target Replicas: {{ replicas }}
+          ===================================================================
+
+    # =============================================================================
+    # Get current container info
+    # =============================================================================
+    - name: Get current container info
+      community.docker.docker_container_info:
+        name: "{{ item }}"
+      register: current_containers
+      failed_when: false
+      loop:
+        - rez-delivery-service
+        - rez-analytics-service
+        - rez-payment-links-service
+        - rez-journey-service
+        - rez-automation-service
+        - rez-gdpr-service
+        - rez-validation-service
+        - rez-cohort-service
+        - rez-currency-service
+        - rez-invoice-service
+        - rez-menu-service
+        - rez-refund-service
+        - rez-tracking-service
+        - rez-websocket-hub
+        - rez-rate-limit
+
+    - name: Display current state
+      ansible.builtin.debug:
+        msg: "Current container state for {{ item.item }}: {{ 'running' if item.exists and item.container.State.Running else 'not running' }}"
+      loop: "{{ current_containers.results }}"
+      when: item.exists
+
+    # =============================================================================
+    # Service-specific port mapping
+    # =============================================================================
+    - name: Set service port mapping
+      ansible.builtin.set_fact:
+        service_port_map:
+          rez-delivery-service: 3000
+          rez-analytics-service: 3001
+          rez-payment-links-service: 3002
+          rez-journey-service: 3003
+          rez-automation-service: 3004
+          rez-gdpr-service: 3005
+          rez-validation-service: 3006
+          rez-cohort-service: 3007
+          rez-currency-service: 3008
+          rez-invoice-service: 3009
+          rez-menu-service: 3010
+          rez-refund-service: 3011
+          rez-tracking-service: 3012
+          rez-websocket-hub: 3013
+          rez-rate-limit: 3014
+
+    # =============================================================================
+    # Scale up
+    # =============================================================================
+    - name: Scale up all services
+      block:
+        - name: Start new container for {{ scale_service }}
+          community.docker.docker_container:
+            name: "{{ scale_service }}"
+            state: started
+            restart_policy: always
+            networks:
+              - name: rez-network
+            ports:
+              - "{{ service_port_map[scale_service] }}:{{ service_port_map[scale_service] }}"
+            healthcheck:
+              test: ["CMD", "curl", "-f", "http://localhost:{{ service_port_map[scale_service] }}/health"]
+              interval: 30s
+              timeout: 10s
+              retries: 3
+              start_period: 30s
+          register: container_start
+
+        - name: Wait for {{ scale_service }} to be healthy
+          ansible.builtin.wait_for:
+            host: "localhost"
+            port: "{{ service_port_map[scale_service] }}"
+            delay: "{{ health_check_interval }}"
+            timeout: "{{ health_check_timeout }}"
+            state: present
+          when: container_start is changed
+          failed_when: false
+
+        - name: Verify {{ scale_service }} health
+          ansible.builtin.uri:
+            url: "http://localhost:{{ service_port_map[scale_service] }}/health"
+            method: GET
+            status_code: 200
+          register: health_check
+          changed_when: false
+          failed_when: false
+
+        - name: Display scale up success
+          ansible.builtin.debug:
+            msg: "Successfully scaled up {{ scale_service }}"
+
+      vars:
+        scale_service: "{{ item }}"
+      loop:
+        - rez-delivery-service
+        - rez-analytics-service
+        - rez-payment-links-service
+        - rez-journey-service
+        - rez-automation-service
+        - rez-gdpr-service
+        - rez-validation-service
+        - rez-cohort-service
+        - rez-currency-service
+        - rez-invoice-service
+        - rez-menu-service
+        - rez-refund-service
+        - rez-tracking-service
+        - rez-websocket-hub
+        - rez-rate-limit
+      when: service == 'all' and replicas | int > 0
+
+    - name: Scale up specific service
+      block:
+        - name: Start container for {{ service }}
+          community.docker.docker_container:
+            name: "{{ service }}"
+            state: started
+            restart_policy: always
+            networks:
+              - name: rez-network
+            ports:
+              - "{{ service_port_map[service] }}:{{ service_port_map[service] }}"
+            healthcheck:
+              test: ["CMD", "curl", "-f", "http://localhost:{{ service_port_map[service] }}/health"]
+              interval: 30s
+              timeout: 10s
+              retries: 3
+              start_period: 30s
+          register: container_start
+
+        - name: Wait for {{ service }} to be healthy
+          ansible.builtin.wait_for:
+            host: "localhost"
+            port: "{{ service_port_map[service] }}"
+            delay: "{{ health_check_interval }}"
+            timeout: "{{ health_check_timeout }}"
+            state: present
+          when: container_start is changed
+          failed_when: false
+
+        - name: Verify {{ service }} health
+          ansible.builtin.uri:
+            url: "http://localhost:{{ service_port_map[service] }}/health"
+            method: GET
+            status_code: 200
+          register: health_check
+          changed_when: false
+          failed_when: false
+
+        - name: Display scale up success
+          ansible.builtin.debug:
+            msg: "Successfully scaled up {{ service }} to {{ replicas }} replicas"
+
+      when: service != 'all' and replicas | int > 0
+
+    # =============================================================================
+    # Scale down
+    # =============================================================================
+    - name: Scale down all services
+      block:
+        - name: Stop container for {{ scale_service }}
+          community.docker.docker_container:
+            name: "{{ scale_service }}"
+            state: stopped
+          failed_when: false
+
+        - name: Remove container for {{ scale_service }}
+          community.docker.docker_container:
+            name: "{{ scale_service }}"
+            state: absent
+          failed_when: false
+
+        - name: Display scale down success
+          ansible.builtin.debug:
+            msg: "Successfully scaled down {{ scale_service }}"
+
+      vars:
+        scale_service: "{{ item }}"
+      loop:
+        - rez-delivery-service
+        - rez-analytics-service
+        - rez-payment-links-service
+        - rez-journey-service
+        - rez-automation-service
+        - rez-gdpr-service
+        - rez-validation-service
+        - rez-cohort-service
+        - rez-currency-service
+        - rez-invoice-service
+        - rez-menu-service
+        - rez-refund-service
+        - rez-tracking-service
+        - rez-websocket-hub
+        - rez-rate-limit
+      when: service == 'all' and replicas | int == 0
+
+    - name: Scale down specific service
+      block:
+        - name: Stop container for {{ service }}
+          community.docker.docker_container:
+            name: "{{ service }}"
+            state: stopped
+          failed_when: false
+
+        - name: Remove container for {{ service }}
+          community.docker.docker_container:
+            name: "{{ service }}"
+            state: absent
+          failed_when: false
+
+        - name: Display scale down success
+          ansible.builtin.debug:
+            msg: "Successfully scaled down {{ service }}"
+
+      when: service != 'all' and replicas | int == 0
+
+    # =============================================================================
+    # Post-scale verification
+    # =============================================================================
+    - name: Get all container statuses
+      ansible.builtin.shell: |
+        docker ps --filter "name=rez-" --format "table {{ '{{' }}.Names}}\t{{ '{{' }}.Status}}\t{{ '{{' }}.Image}}"
+      register: container_status
+      changed_when: false
+
+    - name: Display scale summary
+      ansible.builtin.debug:
+        msg: |
+          ===================================================================
+          REZ Platform Scaling Complete
+          ===================================================================
+          Service: {{ service | default('all') }}
+          Target Replicas: {{ replicas }}
+          Timestamp: {{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}
+          ===================================================================
+          Container Status:
+          {{ container_status.stdout }}
+          ===================================================================

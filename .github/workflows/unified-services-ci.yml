@@ -1,0 +1,176 @@
+name: Unified Services CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'rez-intent-service/**'
+      - 'rez-copilot/**'
+      - 'rez-decision-service/**'
+      - 'rez-ad-platform/**'
+      - 'api-gateway/**'
+      - '.github/workflows/unified-services-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'rez-intent-service/**'
+      - 'rez-copilot/**'
+      - 'rez-decision-service/**'
+      - 'rez-ad-platform/**'
+      - 'api-gateway/**'
+      - '.github/workflows/unified-services-ci.yml'
+
+concurrency:
+  group: unified-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  RETRY_MAX_ATTEMPTS: 3
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+        timeout-minutes: 5
+
+      - name: Install dependencies
+        timeout-minutes: 20
+        run: |
+          cd rez-intent-service && npm install
+          cd ../rez-copilot && npm install
+          cd ../rez-decision-service && npm install
+          cd ../rez-ad-platform && npm install
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Build intent-service
+        run: cd rez-intent-service && npm run build
+        timeout-minutes: 10
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Build copilot
+        run: cd rez-copilot && npm run build
+        timeout-minutes: 10
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Build decision-service
+        run: cd rez-decision-service && npm run build
+        timeout-minutes: 10
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Build ad-platform
+        run: cd rez-ad-platform && npm run build
+        timeout-minutes: 10
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+        timeout-minutes: 5
+
+      - name: Install dependencies
+        timeout-minutes: 20
+        run: |
+          cd rez-intent-service && npm install
+          cd ../rez-copilot && npm install
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Build
+        timeout-minutes: 15
+        run: |
+          cd rez-intent-service && npm run build
+          cd ../rez-copilot && npm run build
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Test intent-service
+        run: cd rez-intent-service && npm test
+        timeout-minutes: 10
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Test copilot
+        run: cd rez-copilot && npm test
+        timeout-minutes: 10
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        timeout-minutes: 3
+
+      - name: Build intent-service
+        run: docker build -t rez-intent-service ./rez-intent-service
+        timeout-minutes: 15
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Build copilot
+        run: docker build -t rez-copilot ./rez-copilot
+        timeout-minutes: 15
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Build decision-service
+        run: docker build -t rez-decision-service ./rez-decision-service
+        timeout-minutes: 15
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Build ad-platform
+        run: docker build -t rez-ad-platform ./rez-ad-platform
+        timeout-minutes: 15
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Scan Docker images
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+        timeout-minutes: 10
+        continue-on-error: true
+
+      - name: Upload scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'

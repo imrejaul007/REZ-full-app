@@ -1,0 +1,76 @@
+# Prometheus Configuration
+# Scrapes metrics from all REZ services
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # UNIFIED SERVICES
+  - job_name: 'intent-service'
+    static_configs:
+      - targets: ['intent-service:4009']
+
+  - job_name: 'copilot'
+    static_configs:
+      - targets: ['copilot:4026']
+
+  - job_name: 'decision-service'
+    static_configs:
+      - targets: ['decision-service:4027']
+
+  - job_name: 'ad-platform'
+    static_configs:
+      - targets: ['ad-platform:4028']
+
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:3000']
+
+  # LEGACY SERVICES
+  - job_name: 'rez-auth-service'
+    static_configs:
+      - targets: ['rez-auth-service:4002']
+    metrics_path: '/metrics'
+
+  - job_name: 'rez-merchant-service'
+    static_configs:
+      - targets: ['rez-merchant-service:4005']
+    metrics_path: '/metrics'
+
+  - job_name: 'rez-intent-graph'
+    static_configs:
+      - targets: ['rez-intent-graph:3001']
+    metrics_path: '/metrics'
+
+  # Node Exporter
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # ─── ReZ API Services (Direct) ───────────────────────────────────────────
+  - job_name: 'rez-api'
+    static_configs:
+      - targets: ['localhost:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'rez-services'
+    static_configs:
+      - targets:
+          - 'localhost:3001'  # intent-service
+          - 'localhost:3002'  # catalog-service
+    metrics_path: '/metrics'
+    scrape_interval: 15s

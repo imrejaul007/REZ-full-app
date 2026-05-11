@@ -1,0 +1,84 @@
+# =============================================================================
+# REZ Delivery Service - Render Deployment Configuration
+# =============================================================================
+# https://render.com/docs/deploys
+# =============================================================================
+
+services:
+  - type: web
+    name: rez-delivery-service
+    env: docker
+    region: oregon
+    plan: pro
+
+    # Docker configuration
+    dockerfilePath: ./Dockerfile
+    dockerContext: ../
+    dockerCommand: ""
+
+    # Health check
+    healthCheckPath: /health
+    healthCheckInterval: 30
+    healthCheckThreshold: 3
+
+    # Auto-scaling
+    autoScaling:
+      minInstances: 2
+      maxInstances: 10
+      targetCPUPercent: 70
+      targetMemoryPercent: 80
+
+    # Environment variables from Render Dashboard
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: APP_NAME
+        value: rez-delivery-service
+
+    # Secret environment variables (values set in Render Dashboard)
+    - key: DATABASE_URL
+      sync: false
+    - key: REDIS_URL
+      sync: false
+    - key: RABBITMQ_URL
+      sync: false
+    - key: JWT_SECRET
+      sync: false
+    - key: ENCRYPTION_KEY
+      sync: false
+    - key: DELIVERY_PROVIDER_API_KEY
+      sync: false
+    - key: GEOCODING_API_KEY
+      sync: false
+    - key: SENTRY_DSN
+      sync: false
+
+    # Disk mounts for persistent storage
+    diskMounts:
+      - mountPath: /var/log/rez
+        name: rez-logs
+        sizeGB: 5
+
+# Pre-deploy hook - run migrations before deployment
+preDeployCommand: npm run migrate:production
+# Post-deploy hook - seed data if needed
+postDeployCommand: npm run post-deploy
+
+# Health monitoring
+healthCheck:
+  enabled: true
+  path: /health
+  timeout: 10s
+  interval: 30s
+  threshold: 3
+
+# Notifications
+notifications:
+  slack:
+    url: https://hooks.slack.com/services/xxx
+    on: [failed, reactivated]
+
+# Zero-downtime deployment
+deploymentStrategy: rolling

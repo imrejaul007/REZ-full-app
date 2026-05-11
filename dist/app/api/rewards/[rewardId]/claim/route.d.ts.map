@@ -1,0 +1,1 @@
+{"version":3,"file":"route.d.ts","sourceRoot":"","sources":["../../../../../../src/app/api/rewards/[rewardId]/claim/route.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,WAAW,EAAgB,MAAM,aAAa,CAAC;AAGxD,wBAAsB,IAAI,CACxB,OAAO,EAAE,WAAW,EACpB,EAAE,MAAM,EAAE,EAAE;IAAE,MAAM,EAAE;QAAE,QAAQ,EAAE,MAAM,CAAA;KAAE,CAAA;CAAE,gBA0B7C"}

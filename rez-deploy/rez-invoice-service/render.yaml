@@ -1,0 +1,57 @@
+# =============================================================================
+# REZ Invoice Service - Render Deployment Configuration
+# =============================================================================
+
+services:
+  - type: web
+    name: rez-invoice-service
+    env: docker
+    region: oregon
+    plan: pro
+
+    dockerfilePath: ./Dockerfile
+    dockerContext: ../
+
+    healthCheckPath: /health
+    healthCheckInterval: 30
+    healthCheckThreshold: 3
+
+    autoScaling:
+      minInstances: 2
+      maxInstances: 6
+      targetCPUPercent: 70
+      targetMemoryPercent: 80
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3009
+      - key: APP_NAME
+        value: rez-invoice-service
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: S3_BUCKET
+        value: rez-invoices
+      - key: JWT_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+
+    diskMounts:
+      - mountPath: /var/log/rez
+        name: rez-logs
+        sizeGB: 10
+      - mountPath: /app/temp
+        name: invoice-temp
+        sizeGB: 5
+
+preDeployCommand: npm run migrate:production
+deploymentStrategy: rolling
+
+notifications:
+  slack:
+    url: https://hooks.slack.com/services/xxx
+    on: [failed, reactivated]

@@ -1,0 +1,25 @@
+name: Performance Tests
+
+on: [push, pull_request]
+
+jobs:
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check bundle size
+        run: |
+          npm run build
+          BUNDLE_SIZE=$(stat -f%z .next/static/**/*.js | awk '{sum+=$1} END {print sum}')
+          echo "Bundle size: $BUNDLE_SIZE bytes"
+          if [ $BUNDLE_SIZE -gt 500000 ]; then
+            echo "Bundle exceeds 500KB limit"
+            exit 1
+          fi
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@main
+        with:
+          urls: http://localhost:3000
+          budgetPath: ./lighthouse-budget.json

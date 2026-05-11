@@ -1,0 +1,191 @@
+# REZ Ecosystem - Complete Prometheus Configuration
+# Production Monitoring Setup
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'rez-production'
+    environment: 'production'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093'
+
+rule_files:
+  - '/etc/prometheus/rules/*.yml'
+  - '/etc/prometheus/rules/*.rules'
+
+scrape_configs:
+  # ─── Core API Services ────────────────────────────────────────────────────
+  - job_name: 'rez-api'
+    static_configs:
+      - targets: ['rez-api:3000']
+        labels:
+          service: rez-api
+          tier: api
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  - job_name: 'rez-worker'
+    static_configs:
+      - targets: ['rez-worker:3001']
+        labels:
+          service: rez-worker
+          tier: worker
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  - job_name: 'rez-websocket'
+    static_configs:
+      - targets: ['rez-websocket:3002']
+        labels:
+          service: rez-websocket
+          tier: realtime
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'rez-graphql'
+    static_configs:
+      - targets: ['rez-graphql:4000']
+        labels:
+          service: rez-graphql
+          tier: api
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # ─── Business Services ────────────────────────────────────────────────────
+  - job_name: 'wallet-service'
+    static_configs:
+      - targets: ['wallet-service:3003']
+        labels:
+          service: wallet
+          tier: finance
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  - job_name: 'payment-service'
+    static_configs:
+      - targets: ['payment-service:3004']
+        labels:
+          service: payments
+          tier: finance
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  - job_name: 'rez-karma-service'
+    static_configs:
+      - targets: ['rez-karma-service:5000']
+        labels:
+          service: karma
+          tier: rewards
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'rez-mind-service'
+    static_configs:
+      - targets: ['rez-mind-service:4001']
+        labels:
+          service: rez-mind
+          tier: ai
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'rez-intent-graph'
+    static_configs:
+      - targets: ['rez-intent-graph:4002']
+        labels:
+          service: intent-graph
+          tier: ai
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # ─── Additional Services ─────────────────────────────────────────────────
+  - job_name: 'rez-notification-service'
+    static_configs:
+      - targets: ['rez-notification-service:4003']
+        labels:
+          service: notifications
+          tier: messaging
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'rez-push-service'
+    static_configs:
+      - targets: ['rez-push-service:4004']
+        labels:
+          service: push
+          tier: messaging
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'rez-scheduler-service'
+    static_configs:
+      - targets: ['rez-scheduler-service:4005']
+        labels:
+          service: scheduler
+          tier: infrastructure
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # ─── Queue Monitoring ─────────────────────────────────────────────────────
+  - job_name: 'bullmq-exporter'
+    static_configs:
+      - targets: ['bullmq-exporter:9090']
+        labels:
+          service: bullmq
+          tier: infrastructure
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # ─── Infrastructure Monitoring ─────────────────────────────────────────────
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: node-exporter
+          tier: infrastructure
+    scrape_interval: 30s
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          service: cadvisor
+          tier: infrastructure
+    scrape_interval: 1m
+
+  # ─── Redis Monitoring ─────────────────────────────────────────────────────
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: redis
+          tier: cache
+    scrape_interval: 30s
+
+  # ─── MongoDB Monitoring ───────────────────────────────────────────────────
+  - job_name: 'mongodb-exporter'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+        labels:
+          service: mongodb
+          tier: database
+    scrape_interval: 30s
+
+# Recording rules for faster dashboard queries
+recording_rules:
+  - name: rez_sla_rules
+    rules:
+      - expr: |
+          1 - (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])))
+        record: rez:service_availability:5m
+      - expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))
+        record: rez:http_latency_p95:5m
+      - expr: |
+          histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))
+        record: rez:http_latency_p99:5m

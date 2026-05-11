@@ -1,0 +1,186 @@
+{
+  "improved_intents": {
+    "CANCEL": {
+      "priority": 1,
+      "patterns": [
+        "cancel", "don't want", "stop", "abort", "remove", "undo", "never mind",
+        "changed my mind", "hatao", "nahi chahiye", "cancel kar", "delete",
+        "not needed", "not required", "skip", "revoke", "disregard", "discard",
+        "band karo", "nahi lena", "stop delivery", "cancel karo", "band karo order",
+        "don't want anymore", "remove from order", "undo the order"
+      ],
+      "weight": 3
+    },
+    "COMPLAINT": {
+      "priority": 1,
+      "patterns": [
+        "cold", "wrong", "bad", "issue", "problem", "late", "missing",
+        "broken", "dirty", "rude", "worst", "disappointed", "food quality",
+        "bakwas", "not good", "poor", "poor service", "waste", "frustrated",
+        "not satisfied", "tasteless", "undercooked", "oily", "slow service",
+        "order is late", "food is cold", "wrong item", "packaging damaged",
+        "very bad", "terrible", "horrible", "slow", "not working", "error",
+        "app not loading", "worst service", "not hygienic", "crash", "glitch"
+      ],
+      "weight": 2
+    },
+    "DELIVERY": {
+      "priority": 1,
+      "patterns": [
+        "where is", "track", "eta", "arrive", "delivery", "driver",
+        "delivery boy", "kahan hai", "order status", "shipment", "tracking",
+        "dispatched", "on the way", "coming", "reach", "where's", "order is late",
+        "meraa order", "mera order", "where is my order", "order kahan",
+        "kaha hai", "kahan hai order", "whr is", "delivery status",
+        "still not delivered", "hasn't come", "late delivery"
+      ],
+      "weight": 2
+    },
+    "SEARCH": {
+      "priority": 2,
+      "patterns": [
+        "find", "search", "show me", "look for", "look around", "explore",
+        "browse", "display", "what restaurants", "what places", "near me",
+        "nearby", "nearest", "best", "cheap", "veg restaurants", "late night",
+        "24 hour", "open now", "available", "options", "suggest", "recommend",
+        "specialty", "popular", "new items", "jain food", "halal", "romantic",
+        "quiet", "pet friendly", "under 2000", "offers", "what's good",
+        "best dish", "top rated", "non veg", "cafes", "spa", "salon", "gym",
+        "laundry", "repair", "hotels", "resorts", "stays", "where to go",
+        "what's available", "all options", "view all"
+      ],
+      "weight": 1
+    },
+    "FEEDBACK": {
+      "priority": 1,
+      "patterns": [
+        "rating", "review", "stars", "feedback", "experience", "how was",
+        "write review", "rate", "opinion", "share", "tell us", "suggest",
+        "recommend", "tasty", "fresh", "loved", "amazing", "best ever",
+        "excellent", "fantastic", "five stars", "highly recommend", "great",
+        "not worth", "overpriced", "expected better", "average", "nice ambiance"
+      ],
+      "weight": 2
+    },
+    "PAYMENT": {
+      "priority": 1,
+      "patterns": [
+        "pay", "payment", "refund", "money", "price", "charged", "transaction",
+        "upi", "gpay", "phonepe", "paytm", "card", "bill", "rupees",
+        "payment failed", "charged twice", "money back", "paisa wapas",
+        "payment issue", "transaction failed", "wrong charges", "coupon not working",
+        "discount not applied", "offer not applicable", "promo code",
+        "money deduct", "payment nahi hua", "payment rejected"
+      ],
+      "weight": 2
+    },
+    "DIETARY": {
+      "priority": 1,
+      "patterns": [
+        "vegetarian", "vegan", "halal", "jain", "allergy", "allergic", "nuts",
+        "gluten", "lactose", "diet", "food preference", "veg", "pure veg",
+        "no onion", "no garlic", "no meat", "egg-free", "nut-free", "dairy-free",
+        "jain food", "halal restaurants", "spicy", "light", "oily"
+      ],
+      "weight": 2
+    },
+    "OPENING_HOURS": {
+      "priority": 1,
+      "patterns": [
+        "open now", "what time", "when do you", "closing time", "hours",
+        "timing", "when open", "till when", "close at", "close?", "closing soon",
+        "all day", "24 hours", "opens at", "closes at", "khulega", "band hoga",
+        "late night", "night open", "midnight"
+      ],
+      "weight": 2
+    },
+    "LOCATION": {
+      "priority": 1,
+      "patterns": [
+        "address", "where", "located", "direction", "map", "parking", "landmark",
+        "reach", "kahan", "location", "find store", "store location", "your address",
+        "in goa", "in bangalore", "near me", "google maps"
+      ],
+      "weight": 1
+    },
+    "CONTACT": {
+      "priority": 1,
+      "patterns": [
+        "call", "phone", "email", "whatsapp", "manager", "talk to", "speak",
+        "contact", "reach", "baat karna", "bolo", "ring them", "connect me",
+        "give number", "send message", "telegram", "support", "help me",
+        "assistance", "customer service"
+      ],
+      "weight": 2
+    },
+    "LOYALTY": {
+      "priority": 1,
+      "patterns": [
+        "points", "rewards", "redeem", "cashback", "loyalty", "coupon",
+        "offer", "promo", "discount", "points balance", "reward balance",
+        "loyalty program", "membership"
+      ],
+      "weight": 2
+    },
+    "GIFT": {
+      "priority": 1,
+      "patterns": [
+        "gift", "voucher", "present", "surprise", "birthday", "anniversary",
+        "celebration", "occasion", "gifting", "corporate gift", "gift option"
+      ],
+      "weight": 1
+    },
+    "RESCHEDULE": {
+      "priority": 1,
+      "patterns": [
+        "reschedule", "change time", "postpone", "delay", "move", "shift",
+        "different time", "another slot", "update booking", "modify",
+        "adjust time", "reschedule karo", "badal do", "time change",
+        "new slot", "amend", "schedule change", "move to"
+      ],
+      "weight": 3
+    },
+    "BOOK": {
+      "priority": 2,
+      "patterns": [
+        "book", "reserve", "reservation", "appointment", "slot", "schedule",
+        "table", "booking", "make a reservation", "book table", "reserve table",
+        "table for", "table chahiye", "table available", "booking karna",
+        "table free", "book karo", "book a table"
+      ],
+      "weight": 1
+    },
+    "ORDER": {
+      "priority": 3,
+      "patterns": [
+        "order", "want", "need", "get", "buy", "delivery", "takeaway",
+        "pickup", "khaana lao", "milao", "lelo bhai", "de do food",
+        "chaahiye khaana", "order karo", "biryani bhejo", "biryani lao",
+        "food delivery", "send food", "hungry", "veg food", "spicy", "quick",
+        "dinner", "lunch", "breakfast", "order food", "send dinner",
+        "bhej do", "yaar", "biryani bhej do jaldi", "food karo",
+        "pls", "please send", "can I get", "I'll have", "let's get"
+      ],
+      "weight": 1
+    }
+  },
+  "noisy_patterns": {
+    "common_typos": {
+      "order": ["ordr", "odr", "odar", "orderr"],
+      "biryani": ["birayni", "birYani", "biryaani"],
+      "cancel": ["cansl", "cansel"],
+      "track": ["trak", "trck"],
+      "where": ["whr", "wr"],
+      "table": ["tbl", "tabl"],
+      "please": ["pls", "plz"],
+      "delivery": ["dlvry", "dilvery"]
+    },
+    "voice_patterns": [
+      "uh yeah", "um can", "like", "you know", "I mean", "sort of",
+      "kind of", "yeah I", "hey can"
+    ],
+    "slang_patterns": [
+      "yaar", "bhai", "bro", "dude", "mate"
+    ]
+  }
+}

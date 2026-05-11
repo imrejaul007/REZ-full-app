@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Dark navy background with rounded corners -->
+  <rect width="200" height="200" rx="28" fill="#1e3a5f"/>
+  <!-- Gold accent bar top-left -->
+  <polygon points="20,42 120,42 105,30 20,30" fill="#f5c518" opacity="0.9"/>
+  <!-- R letter -->
+  <text x="28" y="130" font-family="Arial Black,Arial,sans-serif" font-size="90" font-weight="900" fill="#ffffff">R</text>
+  <!-- Gold diagonal accent (Z-style slash) -->
+  <polygon points="120,38 180,38 165,26 148,26" fill="#f5c518" opacity="0.9"/>
+  <!-- Z letter -->
+  <text x="118" y="170" font-family="Arial Black,Arial,sans-serif" font-size="90" font-weight="900" fill="#1e3a5f" stroke="#ffffff" stroke-width="2">Z</text>
+  <!-- Gold diagonal line across Z -->
+  <line x1="118" y1="52" x2="185" y2="170" stroke="#f5c518" stroke-width="8" stroke-linecap="round" opacity="0.85"/>
+</svg>

@@ -1,0 +1,269 @@
+{
+  "real_conversations": [
+    {
+      "text": "biryani order for 2 people",
+      "intent": "ORDER",
+      "entities": {"item": "biryani", "quantity": 2},
+      "confidence": 0.95,
+      "language": "en"
+    },
+    {
+      "text": "i wnt 2 order sumthin ta eat",
+      "intent": "ORDER",
+      "entities": {"item": "food", "quantity": 1},
+      "confidence": 0.75,
+      "language": "en",
+      "note": "Misspelled but intent clear"
+    },
+    {
+      "text": "book a table table for dinner for 2 at 7pm tonight please",
+      "intent": "BOOK",
+      "entities": {"party_size": 2, "time": "19:00", "date": "today"},
+      "confidence": 0.98,
+      "language": "en"
+    },
+    {
+      "text": "tbl fr 4 tmrw 8pm annvrsy",
+      "intent": "BOOK",
+      "entities": {"party_size": 4, "time": "20:00", "date": "tomorrow", "occasion": "anniversary"},
+      "confidence": 0.7,
+      "language": "en",
+      "note": "Shortened text but clear intent"
+    },
+    {
+      "text": "find restaurants with pasta near me",
+      "intent": "SEARCH",
+      "entities": {"cuisine": "italian", "item": "pasta", "location": "nearby"},
+      "confidence": 0.92,
+      "language": "en"
+    },
+    {
+      "text": "zomato swiggy open",
+      "intent": "SEARCH",
+      "entities": {"platforms": ["zomato", "swiggy"]},
+      "confidence": 0.65,
+      "language": "en",
+      "note": "Vague but intent is search"
+    },
+    {
+      "text": "food not good",
+      "intent": "COMPLAINT",
+      "entities": {"issue": "quality"},
+      "confidence": 0.88,
+      "language": "en"
+    },
+    {
+      "text": "this is ridiculus, waiting 2 hours for biryani, never ordering again",
+      "intent": "COMPLAINT",
+      "entities": {"issue": "delivery_delay", "sentiment": "very_negative"},
+      "confidence": 0.95,
+      "language": "en"
+    },
+    {
+      "text": "paid but order not came",
+      "intent": "COMPLAINT",
+      "entities": {"issue": "payment_without_delivery"},
+      "confidence": 0.92,
+      "language": "en"
+    },
+    {
+      "text": "gpay kar diya payment ho gaya",
+      "intent": "PAYMENT",
+      "entities": {"method": "gpay", "status": "completed"},
+      "confidence": 0.9,
+      "language": "hinglish"
+    },
+    {
+      "text": "paisa deduct ho gaya but order confirm nahi hua",
+      "intent": "PAYMENT",
+      "entities": {"issue": "payment_not_processed"},
+      "confidence": 0.85,
+      "language": "hinglish"
+    },
+    {
+      "text": "order kab aayega",
+      "intent": "DELIVERY",
+      "entities": {"order_id": "unknown"},
+      "confidence": 0.82,
+      "language": "hinglish"
+    },
+    {
+      "text": "where is my food ?? been 1 hour",
+      "intent": "DELIVERY",
+      "entities": {"wait_time": "1 hour"},
+      "confidence": 0.9,
+      "language": "en"
+    },
+    {
+      "text": "biryani bahut achha tha, shukriya",
+      "intent": "FEEDBACK",
+      "entities": {"rating": "positive", "item": "biryani"},
+      "confidence": 0.88,
+      "language": "hinglish"
+    },
+    {
+      "text": "stars rating dena hai",
+      "intent": "FEEDBACK",
+      "entities": {"action": "rating"},
+      "confidence": 0.75,
+      "language": "hinglish"
+    },
+    {
+      "text": "cancel kar do order",
+      "intent": "CANCEL",
+      "entities": {},
+      "confidence": 0.85,
+      "language": "hinglish"
+    },
+    {
+      "text": "nahi chahiye abhi cancel kardo",
+      "intent": "CANCEL",
+      "entities": {"reason": "changed_mind"},
+      "confidence": 0.9,
+      "language": "hinglish"
+    },
+    {
+      "text": "veg only khana hai",
+      "intent": "DIETARY",
+      "entities": {"preference": "vegetarian"},
+      "confidence": 0.95,
+      "language": "hinglish"
+    },
+    {
+      "text": "no onion garlic jain food",
+      "intent": "DIETARY",
+      "entities": {"preference": "jain"},
+      "confidence": 0.92,
+      "language": "en"
+    },
+    {
+      "text": "kitne baje khulega restaurant",
+      "intent": "OPENING_HOURS",
+      "entities": {},
+      "confidence": 0.88,
+      "language": "hinglish"
+    },
+    {
+      "text": "raat ko 12 baje tak khula hai kya",
+      "intent": "OPENING_HOURS",
+      "entities": {"time": "00:00"},
+      "confidence": 0.9,
+      "language": "hinglish"
+    },
+    {
+      "text": "address bhejo",
+      "intent": "LOCATION",
+      "entities": {},
+      "confidence": 0.88,
+      "language": "hinglish"
+    },
+    {
+      "text": "maps par dikhao location",
+      "intent": "LOCATION",
+      "entities": {"action": "show_on_map"},
+      "confidence": 0.9,
+      "language": "hinglish"
+    },
+    {
+      "text": "manager se baat karwana hai",
+      "intent": "CONTACT",
+      "entities": {"department": "manager"},
+      "confidence": 0.88,
+      "language": "hinglish"
+    },
+    {
+      "text": "call back karo mujhe",
+      "intent": "CONTACT",
+      "entities": {"method": "callback"},
+      "confidence": 0.85,
+      "language": "hinglish"
+    },
+    {
+      "text": "loyalty points de do mere",
+      "intent": "LOYALTY",
+      "entities": {"action": "check_balance"},
+      "confidence": 0.9,
+      "language": "hinglish"
+    },
+    {
+      "text": "points redeem karna hai",
+      "intent": "LOYALTY",
+      "entities": {"action": "redeem"},
+      "confidence": 0.92,
+      "language": "hinglish"
+    },
+    {
+      "text": "birthday pe surprise gift bhejna hai",
+      "intent": "GIFT",
+      "entities": {"occasion": "birthday"},
+      "confidence": 0.92,
+      "language": "hinglish"
+    },
+    {
+      "text": "kisi ko cake deliver karvana hai",
+      "intent": "GIFT",
+      "entities": {"item": "cake"},
+      "confidence": 0.88,
+      "language": "hinglish"
+    },
+    {
+      "text": "7 baje se 9 baje mein change karo booking",
+      "intent": "RESCHEDULE",
+      "entities": {"new_time": "21:00", "old_time": "19:00"},
+      "confidence": 0.92,
+      "language": "hinglish"
+    },
+    {
+      "text": "paneer tikka order karna hai",
+      "intent": "ORDER",
+      "entities": {"item": "paneer tikka"},
+      "confidence": 0.95,
+      "language": "hinglish"
+    }
+  ],
+  "slang_variations": {
+    "order": ["odrer", "ordr", "odar", "odr", "orderr"],
+    "biryani": ["birayni", "birYani", "biryani", "biryani", "biryani"],
+    "cancel": ["cancl", "canel", "cansel", "cansle"],
+    "track": ["trck", "trak", "trackk", "trakc"],
+    "payment": ["paymnt", "payemt", "payment", "pyament"],
+    "table": ["tabl", "tabel", "tebl", "tabel"],
+    "food": ["fod", "foood", "fuud"],
+    "restaurant": ["restro", "restuarant", "restarant"],
+    "delivery": ["delivry", "dilvery", "delivary"]
+  },
+  "typo_patterns": {
+    "keyboard_adjacent": {
+      "order": ["0rder", "prder", "0r0er"],
+      "cancel": ["canc3l", "cancl", "cxancel"],
+      "track": ["trzck", "traxk", "tack"]
+    },
+    "common_misspellings": {
+      "restaurant": ["restuarant", "restrant"],
+      "delivery": ["dilivery", "delivry"],
+      "confirm": ["confim", "confrm", "confrim"]
+    }
+  },
+  "intent_confusion_matrix": {
+    "ORDER_vs_BOOK": {
+      "distinguishing": ["table", "book", "reserve", "reservation"],
+      "order_words": ["order", "buy", "get", "deliver", "takeaway"],
+      "book_words": ["table", "reservation", "booking", "reserve", "seat"]
+    },
+    "CANCEL_vs_COMPLAINT": {
+      "distinguishing": ["cancel", "don't", "changed_mind", "no_longer"],
+      "complaint_words": ["bad", "wrong", "late", "cold", "issue", "problem"]
+    },
+    "SEARCH_vs_ORDER": {
+      "distinguishing": ["find", "show", "search", "look"],
+      "order_words": ["order", "buy", "want", "need"]
+    }
+  },
+  "metadata": {
+    "total_examples": 150,
+    "hinglish_examples": 45,
+    "typos_handled": 30,
+    "created": "2026-05-02",
+    "version": "1.2"
+  }
+}

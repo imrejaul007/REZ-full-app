@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: rez-user-intelligence
+    env: node
+    region: singapore
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3004
+      - key: MONGODB_URI
+        sync: false
+      - key: EVENT_PLATFORM_URL
+        sync: false

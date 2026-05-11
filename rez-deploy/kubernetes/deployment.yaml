@@ -1,0 +1,1868 @@
+# =============================================================================
+# REZ Platform - Kubernetes Deployment Manifest
+# =============================================================================
+# Contains deployments for all 15 REZ microservices
+# =============================================================================
+
+---
+# =============================================================================
+# rez-delivery-service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-delivery-service
+  namespace: rez-production
+  labels:
+    app: rez-delivery-service
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rez-delivery-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-delivery-service
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-delivery-service
+          image: rez/delivery-service:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-delivery-service-config
+            - secretRef:
+                name: rez-delivery-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/.cache
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-delivery-service
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-analytics-service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-analytics-service
+  namespace: rez-production
+  labels:
+    app: rez-analytics-service
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rez-analytics-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-analytics-service
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3001"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-analytics-service
+          image: rez/analytics-service:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+            - name: metrics
+              containerPort: 9091
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-analytics-service-config
+            - secretRef:
+                name: rez-analytics-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-analytics-service
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-payment-links-service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-payment-links-service
+  namespace: rez-production
+  labels:
+    app: rez-payment-links-service
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rez-payment-links-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-payment-links-service
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3002"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-payment-links-service
+          image: rez/payment-links-service:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3002
+              protocol: TCP
+            - name: metrics
+              containerPort: 9092
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-payment-links-service-config
+            - secretRef:
+                name: rez-payment-links-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-payment-links-service
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-journey-service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-journey-service
+  namespace: rez-production
+  labels:
+    app: rez-journey-service
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rez-journey-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-journey-service
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3003"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-journey-service
+          image: rez/journey-service:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3003
+              protocol: TCP
+            - name: metrics
+              containerPort: 9093
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-journey-service-config
+            - secretRef:
+                name: rez-journey-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-journey-service
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-automation-service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-automation-service
+  namespace: rez-production
+  labels:
+    app: rez-automation-service
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rez-automation-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-automation-service
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3004"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-automation-service
+          image: rez/automation-service:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3004
+              protocol: TCP
+            - name: metrics
+              containerPort: 9094
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-automation-service-config
+            - secretRef:
+                name: rez-automation-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-automation-service
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-gdpr-service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-gdpr-service
+  namespace: rez-production
+  labels:
+    app: rez-gdpr-service
+    tier: backend
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rez-gdpr-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-gdpr-service
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3005"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-gdpr-service
+          image: rez/gdpr-service:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3005
+              protocol: TCP
+            - name: metrics
+              containerPort: 9095
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-gdpr-service-config
+            - secretRef:
+                name: rez-gdpr-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: gdpr-temp
+              mountPath: /app/temp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: gdpr-temp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-gdpr-service
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-validation-service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-validation-service
+  namespace: rez-production
+  labels:
+    app: rez-validation-service
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rez-validation-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-validation-service
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3006"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-validation-service
+          image: rez/validation-service:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3006
+              protocol: TCP
+            - name: metrics
+              containerPort: 9096
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-validation-service-config
+            - secretRef:
+                name: rez-validation-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-validation-service
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-cohort-service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-cohort-service
+  namespace: rez-production
+  labels:
+    app: rez-cohort-service
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rez-cohort-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-cohort-service
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3007"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-cohort-service
+          image: rez/cohort-service:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3007
+              protocol: TCP
+            - name: metrics
+              containerPort: 9097
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-cohort-service-config
+            - secretRef:
+                name: rez-cohort-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-cohort-service
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-currency-service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-currency-service
+  namespace: rez-production
+  labels:
+    app: rez-currency-service
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rez-currency-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-currency-service
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3008"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-currency-service
+          image: rez/currency-service:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3008
+              protocol: TCP
+            - name: metrics
+              containerPort: 9098
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-currency-service-config
+            - secretRef:
+                name: rez-currency-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-currency-service
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-invoice-service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-invoice-service
+  namespace: rez-production
+  labels:
+    app: rez-invoice-service
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rez-invoice-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-invoice-service
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3009"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-invoice-service
+          image: rez/invoice-service:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3009
+              protocol: TCP
+            - name: metrics
+              containerPort: 9099
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-invoice-service-config
+            - secretRef:
+                name: rez-invoice-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-invoice-service
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-menu-service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-menu-service
+  namespace: rez-production
+  labels:
+    app: rez-menu-service
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rez-menu-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-menu-service
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3010"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-menu-service
+          image: rez/menu-service:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3010
+              protocol: TCP
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-menu-service-config
+            - secretRef:
+                name: rez-menu-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-menu-service
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-refund-service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-refund-service
+  namespace: rez-production
+  labels:
+    app: rez-refund-service
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rez-refund-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-refund-service
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3011"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-refund-service
+          image: rez/refund-service:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3011
+              protocol: TCP
+            - name: metrics
+              containerPort: 9101
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-refund-service-config
+            - secretRef:
+                name: rez-refund-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-refund-service
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-tracking-service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-tracking-service
+  namespace: rez-production
+  labels:
+    app: rez-tracking-service
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rez-tracking-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-tracking-service
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3012"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-tracking-service
+          image: rez/tracking-service:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3012
+              protocol: TCP
+            - name: metrics
+              containerPort: 9102
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-tracking-service-config
+            - secretRef:
+                name: rez-tracking-service-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-tracking-service
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-websocket-hub
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-websocket-hub
+  namespace: rez-production
+  labels:
+    app: rez-websocket-hub
+    tier: backend
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rez-websocket-hub
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-websocket-hub
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3013"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-websocket-hub
+          image: rez/websocket-hub:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3013
+              protocol: TCP
+            - name: metrics
+              containerPort: 9103
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-websocket-hub-config
+            - secretRef:
+                name: rez-websocket-hub-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-websocket-hub
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"
+
+---
+# =============================================================================
+# rez-rate-limit
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rez-rate-limit
+  namespace: rez-production
+  labels:
+    app: rez-rate-limit
+    tier: backend
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rez-rate-limit
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: rez-rate-limit
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3014"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rez-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: rez-rate-limit
+          image: rez/rate-limit:$(IMAGE_TAG)
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3014
+              protocol: TCP
+            - name: metrics
+              containerPort: 9104
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rez-rate-limit-config
+            - secretRef:
+                name: rez-rate-limit-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: rez-rate-limit
+      nodeSelector:
+        workload-type: backend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend"
+          effect: "NoSchedule"

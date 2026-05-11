@@ -1,0 +1,63 @@
+{
+  "real_user_data": {
+    "ORDER_FOOD": [
+      "I want to order food","Order food","Can I order something","Send food",
+      "I am hungry","Get me food","Order dinner","Order lunch","Order breakfast",
+      "Food please","Biryani bhejo","Pizza order karna hai","Kuch khana bhejo",
+      "Send something spicy","Veg food chahiye","Non veg order karo","Order for 2 people",
+      "Dinner for 3","Quick delivery food","Late night food","I need biryani",
+      "Want noodles","Order biryani for home","Get pizza delivered","Deliver food",
+      "Order takeaway","Pickup order","Need food now","Food delivery karo",
+      "Khaana order karo","Biryani lao","Pizaa mangwao"
+    ],
+    "BOOK_TABLE": [
+      "Book a table","Reserve table","Table for 2","Book for 4 at 8pm",
+      "Reservation please","Table chahiye","Book dinner table",
+      "Table available hai?","Reserve for tonight","Booking karna hai",
+      "Table for 4 tonight","Reserve for anniversary","Book booth",
+      "Corner table book","Book rooftop","Table on terrace","Window seat book",
+      "Quiet table chahiye","Family table book"
+    ],
+    "COMPLAINT": [
+      "Order is late","Where is my order","Food is cold","Wrong item received",
+      "Bad service","Refund chahiye","Cancel my order","Payment failed",
+      "Charged twice","Not satisfied","Food not fresh","Tasteless biryani",
+      "Missing items","Wrong order","Delivery boy rude","Packaging damaged",
+      "Very slow service","Food quality poor","Undercooked chicken","Too oily"
+    ],
+    "SEARCH_RESTAURANT": [
+      "Best restaurants near me","Cheap food nearby","Veg restaurants",
+      "Best cafes in Bangalore","Nearby biryani places","Italian restaurants",
+      "Chinese food near me","Pubs near my location","Rooftop restaurants",
+      "Breakfast places nearby"
+    ],
+    "SEARCH_SERVICE": [
+      "Late night food near me","Spa near me","Nearby salons",
+      "24 hour restaurants","Late night delivery","Night food options",
+      "Midnight snacks","Open now places","Late night cafes"
+    ],
+    "SEARCH_HOTEL": [
+      "Hotels in Goa","Beach resorts nearby","Budget hotels","Luxury hotels",
+      "Hotels with pool","Family friendly hotels","Pet friendly hotels",
+      "Hotels near airport","Business hotels"
+    ],
+    "REFUND_REQUEST": [
+      "Refund chahiye","Money back do","Paisa wapas karo","Refund karna hai",
+      "Money refund please","Return my money","Reversal chahiye"
+    ],
+    "CANCEL_ORDER": [
+      "Cancel my order","Cancel kar do","Order cancel karna hai",
+      "Don't want anymore","Band karo order","Cancel the biryani",
+      "Remove from order","Stop delivery"
+    ],
+    "PAYMENT_ISSUE": [
+      "Payment failed","Charged twice","Payment nahi hua","Money deduct ho gaya",
+      "Transaction failed","Payment error","Payment rejected"
+    ]
+  },
+  "metadata": {
+    "source": "user_provided",
+    "date": "2026-05-02",
+    "count": 150
+  }
+}

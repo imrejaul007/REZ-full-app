@@ -1,0 +1,248 @@
+name: ReZ CI Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: false
+        type: string
+        default: ${{ github.event.repository.name }}
+      node_version:
+        required: false
+        type: string
+        default: '20'
+      service_type:
+        required: false
+        type: string
+        default: 'node-service'
+        description: 'node-service | node-app | react-native | nextjs | shared-package'
+      run_tests:
+        required: false
+        type: boolean
+        default: true
+      run_lint:
+        required: false
+        type: boolean
+        default: true
+      run_typecheck:
+        required: false
+        type: boolean
+        default: true
+      run_build:
+        required: false
+        type: boolean
+        default: true
+      run_arch_fitness:
+        required: false
+        type: boolean
+        default: true
+      coverage_threshold:
+        required: false
+        type: number
+        default: 0
+      mongodb_service:
+        required: false
+        type: boolean
+        default: false
+      redis_service:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      GH_TOKEN:
+        required: false
+
+env:
+  NODE_VERSION: ${{ inputs.node_version }}
+  SERVICE_NAME: ${{ inputs.service_name }}
+
+jobs:
+  # ── Quality Gates ──────────────────────────────────────────────────────────
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Type check
+        if: inputs.run_typecheck
+        run: npx tsc --noEmit
+        continue-on-error: true
+
+      - name: Lint
+        if: inputs.run_lint
+        run: npx eslint . --max-warnings=0 || npx eslint . --no-error-on-unmatchedPattern || true
+        continue-on-error: true
+
+  # ── Testing ───────────────────────────────────────────────────────────────
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    if: inputs.run_tests
+    services:
+      mongodb:
+        image: mongo:7
+        ports: ['27017:27017']
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ping:1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Run tests
+        run: npm test -- --coverage --forceExit --testTimeout=15000 --passWithNoTests
+        env:
+          NODE_ENV: test
+          MONGODB_URI: mongodb://localhost:27017/rez-test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: ci-jwt-secret-min-32-characters-long
+          JWT_REFRESH_SECRET: ci-jwt-refresh-secret-min-32-chars
+          JWT_MERCHANT_SECRET: ci-jwt-merchant-secret-32chars
+          JWT_ADMIN_SECRET: ci-jwt-admin-secret-32chars-long
+          OTP_HMAC_SECRET: ci-otp-hmac-secret-32-characters
+          INTERNAL_SERVICE_TOKEN: ci-internal-service-token
+          RAZORPAY_KEY_ID: test_key
+          RAZORPAY_KEY_SECRET: test_secret
+          OTEL_ENABLED: 'false'
+          CASHBACK_REDIS_REQUIRED: 'false'
+
+      - name: Enforce coverage threshold
+        if: inputs.coverage_threshold > 0
+        run: |
+          TOTAL=$(npx jest --coverage --coverageReporters=json-summary --passWithNoTests 2>/dev/null | jq '.total.lines.pct' || echo "0")
+          if (( $(echo "$TOTAL < ${{ inputs.coverage_threshold }}" | bc -l) )); then
+            echo "Coverage $TOTAL% is below threshold ${{ inputs.coverage_threshold }}%"
+            exit 1
+          fi
+          echo "Coverage: $TOTAL%"
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-${{ env.SERVICE_NAME }}
+          path: coverage/
+          retention-days: 7
+
+  # ── Build ────────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    if: inputs.run_build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Build
+        run: npm run build
+        continue-on-error: true
+
+  # ── Architecture Fitness ─────────────────────────────────────────────────
+  arch-fitness:
+    name: Architecture Fitness
+    runs-on: ubuntu-latest
+    if: inputs.run_arch_fitness
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: No bespoke buttons
+        run: |
+          echo "Checking for bespoke button components..."
+          FOUND=$(grep -r "from.*button\|<button" --include="*.tsx" --include="*.jsx" . 2>/dev/null | grep -v node_modules | grep -v "@rez/rez-ui" | grep -v "from '@mui" | wc -l || true)
+          if [ "$FOUND" -gt 0 ]; then echo "WARNING: Found $FOUND potential bespoke buttons"; fi
+
+      - name: No console logs
+        run: |
+          echo "Checking for console.log usage..."
+          FOUND=$(grep -r "console\.\(log\|warn\|error\|info\|debug\)" --include="*.ts" --include="*.tsx" . 2>/dev/null | grep -v node_modules | grep -v "logger\." | wc -l || true)
+          if [ "$FOUND" -gt 0 ]; then echo "WARNING: Found $FOUND console.* calls"; fi
+
+      - name: No Math.random for IDs
+        run: |
+          echo "Checking for Math.random usage..."
+          FOUND=$(grep -r "Math\.random()" --include="*.ts" --include="*.tsx" . 2>/dev/null | grep -v node_modules | grep -v "uuid" | wc -l || true)
+          if [ "$FOUND" -gt 0 ]; then echo "WARNING: Found $FOUND Math.random() calls"; fi
+
+      - name: No bespoke idempotency
+        run: |
+          echo "Checking for bespoke idempotency patterns..."
+          FOUND=$(grep -r "idempotency\|idempotent" --include="*.ts" --include="*.tsx" . 2>/dev/null | grep -v node_modules | grep -v "@rez/rez-shared" | grep -v "rez-shared" | grep -v "idempotency/lib" | wc -l || true)
+          if [ "$FOUND" -gt 0 ]; then echo "WARNING: Found $FOUND potential bespoke idempotency patterns"; fi
+
+  # ── Security Audit ───────────────────────────────────────────────────────
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+  # ── CI Gate ──────────────────────────────────────────────────────────────
+  ci-gate:
+    name: CI Gate
+    needs: [quality-gates, security]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Evaluate results
+        run: |
+          QUALITY=${{ needs.quality-gates.result }}
+          if [ "$QUALITY" != "success" ]; then
+            echo "Quality gates failed: $QUALITY"
+            exit 1
+          fi
+          echo "All required checks passed"

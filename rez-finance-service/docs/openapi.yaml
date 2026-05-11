@@ -1,0 +1,918 @@
+openapi: 3.0.0
+info:
+  title: ReZ Finance API
+  version: 1.0.0
+  description: |
+    ReZ Finance Service provides credit scoring, loan applications, BNPL,
+    bill payments, and risk management APIs.
+  contact:
+    name: ReZ API Support
+    email: api-support@rez.money
+  license:
+    name: Proprietary
+    url: https://rez.money/terms
+
+servers:
+  - url: https://api.rez.money
+    description: Production
+  - url: https://staging-api.rez.money
+    description: Staging
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Credit
+    description: Credit score and bureau operations
+  - name: Borrow
+    description: Loans, credit cards, and BNPL
+  - name: Payments
+    description: Bill payments and recharges
+  - name: Risk
+    description: Risk engine, marketplace, and merchant financing
+
+paths:
+  # Credit Score Routes
+  /api/finance/credit/score:
+    get:
+      summary: Get user's ReZ credit score
+      description: Returns the user's credit score, grade, and eligibility. Rate limited to 1 request per 10 seconds.
+      tags: [Credit]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Credit score retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  rezScore:
+                    type: integer
+                    example: 650
+                  grade:
+                    type: string
+                    example: "good"
+                  eligibility:
+                    type: object
+                    properties:
+                      loanAmount:
+                        type: number
+                      maxTenure:
+                        type: integer
+        '401':
+          description: Unauthorized
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: "Too many requests. Please wait 10 seconds."
+        '500':
+          description: Server error
+
+  /api/finance/credit/score/check:
+    post:
+      summary: Check credit score and earn coins
+      description: Triggers a credit score check and rewards coins if not already claimed today.
+      tags: [Credit]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Score check completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  rezScore:
+                    type: integer
+                    example: 650
+                  coinsAwarded:
+                    type: integer
+                    example: 10
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+  /api/finance/credit/score/refresh:
+    post:
+      summary: Force refresh credit score
+      description: Fetches the latest score from the credit bureau.
+      tags: [Credit]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Score refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  rezScore:
+                    type: integer
+                    example: 655
+                  eligibility:
+                    type: object
+                  tips:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+  # Borrow Routes
+  /api/finance/borrow/offers:
+    get:
+      summary: Get active pre-approved offers
+      description: Returns active pre-approved loan and credit card offers for the user.
+      tags: [Borrow]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Offers retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  offers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        partnerName:
+                          type: string
+                        amount:
+                          type: number
+                        interestRate:
+                          type: number
+                        tenure:
+                          type: integer
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+  /api/finance/borrow/apply:
+    post:
+      summary: Apply for a loan or credit card
+      tags: [Borrow]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - partnerOfferId
+                - amount
+                - tenure
+              properties:
+                partnerOfferId:
+                  type: string
+                  description: Partner offer ID
+                amount:
+                  type: number
+                  maximum: 10000000
+                  description: Loan amount
+                tenure:
+                  type: integer
+                  minimum: 1
+                  description: Loan tenure in months
+                context:
+                  type: object
+                  properties:
+                    screen:
+                      type: string
+                    orderId:
+                      type: string
+                    bookingId:
+                      type: string
+      responses:
+        '201':
+          description: Application created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  application:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      status:
+                        type: string
+                      redirectUrl:
+                        type: string
+                  redirectUrl:
+                    type: string
+        '400':
+          description: Invalid request or eligibility error
+        '401':
+          description: Unauthorized
+        '403':
+          description: Account inactive or frozen
+        '500':
+          description: Server error
+
+  /api/finance/borrow/applications:
+    get:
+      summary: Get user's loan applications
+      tags: [Borrow]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Applications retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  applications:
+                    type: array
+                    items:
+                      type: object
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+  /api/finance/borrow/applications/{id}:
+    get:
+      summary: Get single application by ID
+      tags: [Borrow]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Application ID
+      responses:
+        '200':
+          description: Application found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  application:
+                    type: object
+        '401':
+          description: Unauthorized
+        '404':
+          description: Application not found
+        '500':
+          description: Server error
+
+  /api/finance/borrow/bnpl/check:
+    post:
+      summary: Check BNPL eligibility
+      description: Check if user is eligible for Buy Now Pay Later on a given order.
+      tags: [Borrow]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - orderId
+              properties:
+                amount:
+                  type: number
+                  description: Order amount
+                orderId:
+                  type: string
+                  description: Order ID
+      responses:
+        '200':
+          description: Eligibility checked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  eligible:
+                    type: boolean
+                  payLaterLimit:
+                    type: number
+                  remainingLimit:
+                    type: number
+        '400':
+          description: Invalid request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+  /api/finance/borrow/bnpl/create:
+    post:
+      summary: Create BNPL order
+      description: Create a Buy Now Pay Later order. Rate limited to 5 orders per hour.
+      tags: [Borrow]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - orderId
+              properties:
+                amount:
+                  type: number
+                  maximum: 500000
+                  description: Order amount (max 500,000)
+                orderId:
+                  type: string
+                  description: Order ID
+                merchantId:
+                  type: string
+                partnerId:
+                  type: string
+      responses:
+        '201':
+          description: BNPL order created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  transaction:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      amount:
+                        type: number
+                      status:
+                        type: string
+                      dueDate:
+                        type: string
+                        format: date
+        '400':
+          description: Not eligible or exceeds limit
+        '401':
+          description: Unauthorized
+        '429':
+          description: Rate limit exceeded (max 5 per hour)
+        '500':
+          description: Server error
+
+  # Payment Routes
+  /api/finance/pay/billers:
+    get:
+      summary: Get supported billers
+      description: Returns list of supported billers for bill payment.
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Billers list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  billers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        type:
+                          type: string
+                          enum: [mobile, electricity, water, fastag]
+
+  /api/finance/pay/bill:
+    post:
+      summary: Pay a bill
+      description: Pay a bill (electricity, water, etc.). Requires BBPS aggregator integration.
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - billerId
+                - accountNumber
+                - amount
+              properties:
+                billerId:
+                  type: string
+                accountNumber:
+                  type: string
+                amount:
+                  type: number
+                  minimum: 1
+      responses:
+        '201':
+          description: Bill payment initiated
+        '400':
+          description: Invalid request
+        '401':
+          description: Unauthorized
+        '501':
+          description: Feature not available
+        '500':
+          description: Server error
+
+  /api/finance/pay/recharge:
+    post:
+      summary: Mobile or FASTag recharge
+      description: Recharge mobile or FASTag. Requires recharge aggregator integration.
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - operator
+                - accountNumber
+                - amount
+              properties:
+                operator:
+                  type: string
+                accountNumber:
+                  type: string
+                  minLength: 5
+                amount:
+                  type: number
+                  minimum: 1
+      responses:
+        '201':
+          description: Recharge initiated
+        '400':
+          description: Invalid request
+        '401':
+          description: Unauthorized
+        '501':
+          description: Feature not available
+        '500':
+          description: Server error
+
+  /api/finance/pay/transactions:
+    get:
+      summary: Get payment transactions
+      description: Get user's payment transactions with cursor-based pagination.
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: before
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Cursor for pagination (ISO timestamp)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+          description: Number of results
+      responses:
+        '200':
+          description: Transactions retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  transactions:
+                    type: array
+                    items:
+                      type: object
+                  nextCursor:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  limit:
+                    type: integer
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+  /api/finance/pay/repay:
+    post:
+      summary: Process loan repayment
+      description: Process an EMI loan repayment.
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - loanId
+                - amount
+                - emiNumber
+              properties:
+                loanId:
+                  type: string
+                amount:
+                  type: number
+                  minimum: 1
+                emiNumber:
+                  type: integer
+                  minimum: 1
+      responses:
+        '200':
+          description: Repayment successful
+        '400':
+          description: Invalid request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+  /api/finance/pay/overdue-check:
+    post:
+      summary: Check loan overdue status
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - loanId
+              properties:
+                loanId:
+                  type: string
+      responses:
+        '200':
+          description: Overdue status checked
+        '400':
+          description: Invalid request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+  # Risk Routes
+  /api/finance/risk/fraud/{userId}:
+    get:
+      summary: Detect fraud risk
+      tags: [Risk]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Fraud detection result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      score:
+                        type: number
+                      level:
+                        type: string
+                      flags:
+                        type: array
+                        items:
+                          type: string
+        '500':
+          description: Server error
+
+  /api/finance/risk/default/{userId}:
+    get:
+      summary: Predict default probability
+      tags: [Risk]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Default prediction result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      probability:
+                        type: number
+                      riskLevel:
+                        type: string
+        '500':
+          description: Server error
+
+  /api/finance/risk/anomaly/{userId}:
+    get:
+      summary: Detect anomalous behavior
+      tags: [Risk]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Anomaly detection result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      anomalies:
+                        type: array
+                        items:
+                          type: object
+                      riskScore:
+                        type: number
+        '500':
+          description: Server error
+
+  # Credit Marketplace
+  /api/finance/marketplace/compare/{userId}:
+    get:
+      summary: Compare credit offers
+      tags: [Risk]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Offers comparison
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      offers:
+                        type: array
+                        items:
+                          type: object
+        '500':
+          description: Server error
+
+  /api/finance/marketplace/best/{userId}:
+    get:
+      summary: Get best offer recommendation
+      tags: [Risk]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Best offer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      offer:
+                        type: object
+        '500':
+          description: Server error
+
+  # Merchant Financing
+  /api/finance/merchant/{merchantId}/limit:
+    get:
+      summary: Get merchant credit limit
+      tags: [Risk]
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Merchant limit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      merchantId:
+                        type: string
+                      creditLimit:
+                        type: number
+                      utilizedAmount:
+                        type: number
+                      availableLimit:
+                        type: number
+        '500':
+          description: Server error
+
+  /api/finance/merchant/loan:
+    post:
+      summary: Apply for merchant loan
+      tags: [Risk]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Loan application result
+        '400':
+          description: Invalid request
+        '500':
+          description: Server error
+
+  # Ecosystem Credit
+  /api/finance/ecosystem/benefits/{userId}:
+    get:
+      summary: Get ecosystem benefits
+      tags: [Risk]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ecosystem benefits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      benefits:
+                        type: array
+                        items:
+                          type: object
+                      totalSavings:
+                        type: number
+        '500':
+          description: Server error
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        code:
+          type: string
+      required:
+        - success
+        - error
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        hasMore:
+          type: boolean

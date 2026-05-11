@@ -1,0 +1,243 @@
+# =============================================================================
+# REZ Platform - Kubernetes Ingress Manifest
+# =============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rez-ingress
+  namespace: rez-production
+  labels:
+    app: rez-platform
+    environment: production
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-rpm: "1000"
+    nginx.ingress.kubernetes.io/websocket-services: "rez-websocket-hub"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri"
+    nginx.ingress.kubernetes.io/load-balance: "least_conn"
+    nginx.ingress.kubernetes.io/circuit-breaker-enable: "true"
+    nginx.ingress.kubernetes.io/circuit-breaker-errors: "502,503,504"
+    nginx.ingress.kubernetes.io/circuit-breaker-timeout: "60"
+    nginx.ingress.kubernetes.io/server-snippet: |
+      location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+      }
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.rez.app
+        - "*.rez.app"
+      secretName: rez-tls-secret
+  rules:
+    # =============================================================================
+    # API Gateway - Main entry point
+    # =============================================================================
+    - host: api.rez.app
+      http:
+        paths:
+          # Delivery Service
+          - path: /api/v1/delivery
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-delivery-service
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "200"
+          # Analytics Service
+          - path: /api/v1/analytics
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-analytics-service
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "100"
+          # Payment Links Service
+          - path: /api/v1/payment-links
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-payment-links-service
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "50"
+          # Journey Service
+          - path: /api/v1/journey
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-journey-service
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "100"
+          # Automation Service
+          - path: /api/v1/automation
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-automation-service
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "50"
+          # GDPR Service
+          - path: /api/v1/gdpr
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-gdpr-service
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "20"
+          # Validation Service
+          - path: /api/v1/validation
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-validation-service
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "200"
+          # Cohort Service
+          - path: /api/v1/cohort
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-cohort-service
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "100"
+          # Currency Service
+          - path: /api/v1/currency
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-currency-service
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "200"
+          # Invoice Service
+          - path: /api/v1/invoice
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-invoice-service
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "50"
+          # Menu Service
+          - path: /api/v1/menu
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-menu-service
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "200"
+          # Refund Service
+          - path: /api/v1/refund
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-refund-service
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "50"
+          # Tracking Service
+          - path: /api/v1/tracking
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-tracking-service
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "200"
+          # Rate Limit Service
+          - path: /api/v1/rate-limit
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-rate-limit
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "100"
+
+    # =============================================================================
+    # WebSocket Hub - Real-time connections
+    # =============================================================================
+    - host: ws.rez.app
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-websocket-hub
+                port:
+                  number: 80
+            metadata:
+              rate-limit: "500"
+
+---
+# =============================================================================
+# Internal API Ingress (no TLS, internal network only)
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rez-internal-ingress
+  namespace: rez-production
+  labels:
+    app: rez-platform
+    environment: production
+  annotations:
+    kubernetes.io/ingress.class: nginx-internal
+spec:
+  ingressClassName: nginx-internal
+  rules:
+    - host: rez-internal.rez.svc.cluster.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rez-delivery-service
+                port:
+                  number: 80

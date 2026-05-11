@@ -1,0 +1,8 @@
+{
+  "allowedOrigins": [
+    "https://app.rez.money",
+    "https://merchant.rez.money"
+  ],
+  "allowedMethods": ["GET", "POST", "PUT", "DELETE"],
+  "allowedHeaders": ["Content-Type", "Authorization"]
+}

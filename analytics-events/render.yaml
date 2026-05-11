@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: analytics-events
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '3002'
+      - key: HEALTH_PORT
+        value: '3102'
+      - key: MONGODB_URI
+        sync: false
+      # Redis - use REDIS_HOST/PORT/PASSWORD (same as rez-event-platform)
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        value: '6379'
+      - key: REDIS_PASSWORD
+        sync: false
+      # Event Platform integration
+      - key: EVENT_PLATFORM_ENABLED
+        value: 'true'
+      # INTERNAL_SERVICE_TOKENS_JSON — for internal service-to-service auth.
+      - key: INTERNAL_SERVICE_TOKENS_JSON
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: SENTRY_DSN
+        sync: false

@@ -1,0 +1,65 @@
+{
+  "title": "REZ - Business Metrics",
+  "panels": [
+    {
+      "title": "Orders Today",
+      "type": "stat",
+      "targets": [{
+        "expr": "sum(increase(rez_orders_total[24h]))"
+      }]
+    },
+    {
+      "title": "Revenue Today",
+      "type": "stat",
+      "targets": [{
+        "expr": "sum(increase(rez_revenue_total[24h]))"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyINR"
+        }
+      }
+    },
+    {
+      "title": "Active Users",
+      "type": "stat",
+      "targets": [{
+        "expr": "sum(rez_active_users)"
+      }]
+    },
+    {
+      "title": "Payment Success Rate",
+      "type": "gauge",
+      "targets": [{
+        "expr": "sum(rate(rez_payment_success[5m])) / sum(rate(rez_payment_total[5m])) * 100"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              {"value": 0, "color": "red"},
+              {"value": 95, "color": "yellow"},
+              {"value": 99, "color": "green"}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Orders Over Time",
+      "type": "timeseries",
+      "targets": [{
+        "expr": "sum(rate(rez_orders_total[5m])) by (status)"
+      }]
+    },
+    {
+      "title": "Top Categories",
+      "type": "piechart",
+      "targets": [{
+        "expr": "sum(increase(rez_orders_total[24h])) by (category)"
+      }]
+    }
+  ]
+}

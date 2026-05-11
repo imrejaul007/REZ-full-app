@@ -1,0 +1,35 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - 'alert_rules.yml'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'rez-services'
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+        - 'rez-auth-service:3001'
+        - 'rez-merchant-service:3004'
+        - 'rez-wallet-service:3007'
+        - 'rez-payment-service:4001'
+        - 'rez-order-service:3006'
+        - 'rez-catalog-service:3005'
+        - 'rez-search-service:3008'
+        - 'rez-gamification-service:3003'
+        - 'rez-ads-service:4007'
+        - 'rez-marketing-service:3010'
+        - 'rez-media-events:3008'
+        - 'rez-notification-events:3001'
+        - 'rez-finance-service:4002'
+        - 'rez-karma-service:3009'

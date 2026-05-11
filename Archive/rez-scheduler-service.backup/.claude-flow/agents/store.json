@@ -1,0 +1,109 @@
+{
+  "agents": {
+    "audit-datalayer": {
+      "agentId": "audit-datalayer",
+      "agentType": "general-purpose",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "instructions": "You are Audit-DataLayer. For each DEFERRED bug in 01-DATA-LAYER.md, 02-API-CONTRACTS.md, 03-ENUMS-BUSINESS-LOGIC.md, 06-FINANCIAL-INTEGRITY.md, 06-FORENSIC-DATA-INTEGRITY.md, and 06-SCHEMA-DIVERGENCE.md (in /Users/rejaulkarim/Documents/ReZ Full App/docs/Bugs/), determine if it is TRULY_DEFERRED, MISJUDGMENT (already fixed), or FIXABLE. Read the actual source code to verify. Do NOT edit any files. Send complete findings to team-lead when done."
+      },
+      "createdAt": "2026-04-14T17:10:55.617Z",
+      "model": "opus",
+      "modelRoutedBy": "router"
+    },
+    "audit-frontend": {
+      "agentId": "audit-frontend",
+      "agentType": "general-purpose",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "instructions": "You are Audit-Frontend. For each DEFERRED bug in 07-14 files and 15-TYPESCRIPT-UI.md, determine if it is TRULY_DEFERRED, MISJUDGMENT (already fixed), or FIXABLE. Read actual source code to verify. Do NOT edit any files. Send complete findings to team-lead when done."
+      },
+      "createdAt": "2026-04-14T17:10:55.648Z",
+      "model": "opus",
+      "modelRoutedBy": "router"
+    },
+    "audit-backend": {
+      "agentId": "audit-backend",
+      "agentType": "general-purpose",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "instructions": "You are Audit-Backend. For each DEFERRED bug in files 08-13, determine if TRULY_DEFERRED, MISJUDGMENT (already fixed), or FIXABLE. Read actual source code. Do NOT edit. Send report to team-lead."
+      },
+      "createdAt": "2026-04-14T17:10:55.654Z",
+      "model": "opus",
+      "modelRoutedBy": "router"
+    },
+    "audit-crossservice": {
+      "agentId": "audit-crossservice",
+      "agentType": "general-purpose",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "instructions": "You are Audit-CrossService. For each DEFERRED bug in files 16-20, determine if TRULY_DEFERRED, MISJUDGMENT (already fixed), or FIXABLE. Read actual source code across rez-shared, rez-gamification-service, rez-payment-service. Do NOT edit. Send report to team-lead."
+      },
+      "createdAt": "2026-04-14T17:10:55.658Z",
+      "model": "opus",
+      "modelRoutedBy": "router"
+    },
+    "audit-misseditems": {
+      "agentId": "audit-misseditems",
+      "agentType": "general-purpose",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "instructions": "You are Audit-MissedItems. Audit ALL entries in 15-MISSED-ITEMS-ADDENDUM.md. Verify MA-M2 (dailySpendLimit), MA-M3 (webhook atomicity), MA-L3 (walk-in phone lookup) against source code. Do NOT edit. Send report to team-lead."
+      },
+      "createdAt": "2026-04-14T17:10:55.663Z",
+      "model": "opus",
+      "modelRoutedBy": "router"
+    },
+    "audit-migrations": {
+      "agentId": "audit-migrations",
+      "agentType": "general-purpose",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "instructions": "You are Audit-Migrations. Verify all 6 migration scripts in docs/migrations/audit7-sprint1/. Check existence, syntax validity, and evidence of execution. Do NOT edit. Send report to team-lead."
+      },
+      "createdAt": "2026-04-14T17:10:55.670Z",
+      "model": "opus",
+      "modelRoutedBy": "router"
+    },
+    "backend-fixer": {
+      "agentId": "backend-fixer",
+      "agentType": "general-purpose",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "instructions": "You are BackendFixer. Wait for bugs from team-lead. When received, fix the code in /Users/rejaulkarim/Documents/ReZ Full App/rezbackend/rez-backend-master/src/. Read file first, make minimal fix, commit, report back."
+      },
+      "createdAt": "2026-04-14T17:10:55.673Z",
+      "model": "sonnet",
+      "modelRoutedBy": "router"
+    },
+    "merchant-fixer": {
+      "agentId": "merchant-fixer",
+      "agentType": "general-purpose",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "instructions": "You are MerchantFixer. Wait for bugs from team-lead. When received, fix the code in /Users/rejaulkarim/Documents/ReZ Full App/rezmerchant/rez-merchant-master/src/. Read file first, make minimal fix, commit, report back."
+      },
+      "createdAt": "2026-04-14T17:10:55.677Z",
+      "model": "sonnet",
+      "modelRoutedBy": "router"
+    }
+  },
+  "version": "3.0.0"
+}

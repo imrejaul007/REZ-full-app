@@ -1,0 +1,27 @@
+# rez-core-platform - 2 deployments
+services:
+  - type: web
+    name: rez-core-events
+    env: node
+    region: singapore
+    buildCommand: npm install
+    startCommand: bash start-events.sh
+    healthCheckPath: /health
+    autoDeploy: yes
+    branch: main
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: web
+    name: rez-core-intelligence
+    env: node
+    region: singapore
+    buildCommand: npm install
+    startCommand: bash start-intelligence.sh
+    healthCheckPath: /health
+    autoDeploy: yes
+    branch: main
+    envVars:
+      - key: NODE_ENV
+        value: production

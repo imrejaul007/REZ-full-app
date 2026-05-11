@@ -1,0 +1,260 @@
+# Alertmanager Configuration for REZ Ecosystem
+# Production Setup
+
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'smtp.sendgrid.net:587'
+  smtp_from: 'alerts@rez.money'
+  smtp_auth_username: 'apikey'
+  smtp_auth_password: '${SENDGRID_API_KEY}'
+
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route all alerts to the root receiver first
+route:
+  receiver: 'default-receiver'
+  group_by: ['alertname', 'severity', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 4h
+  # All unmatched alerts go through default-receiver first
+  # Then route based on severity
+  routes:
+    # ─── Critical: Immediate PagerDuty + Slack ──────────────────────────────
+    - match:
+        severity: critical
+      receiver: 'pagerduty-critical'
+      continue: true
+
+    # ─── Warning: Slack + Email ──────────────────────────────────────────────
+    - match:
+        severity: warning
+      receiver: 'slack-notifications'
+      continue: true
+
+    # ─── Info: Slack only ────────────────────────────────────────────────────
+    - match:
+        severity: info
+      receiver: 'slack-notifications'
+
+    # ─── Finance Service: Additional notification ───────────────────────────
+    - match:
+        service: payments
+        severity: critical
+      receiver: 'finance-slack'
+      continue: true
+
+    # ─── Finance Service: Email to Finance team ──────────────────────────────
+    - match:
+        service: payments
+        severity: critical
+      receiver: 'finance-email'
+
+    # ─── AI/ReZ Mind: AI team Slack ─────────────────────────────────────────
+    - match:
+        service: rez-mind
+        severity: warning
+      receiver: 'ai-slack'
+
+# ─── Inhibitions ──────────────────────────────────────────────────────────────
+# Prevent alert storms by inhibiting less severe alerts when more severe ones fire
+inhibit_rules:
+  # If a service is completely down, don't fire latency warnings
+  - source_match:
+      severity: critical
+    source_match_re:
+      alertname: ServiceDown
+    target_match:
+      severity: warning
+    target_match_re:
+      alertname: HighLatency.*
+    equal: ['service']
+
+  # If a payment service is down, inhibit payment latency warnings
+  - source_match:
+      severity: critical
+    source_match_re:
+      alertname: ServiceDown
+    target_match:
+      severity: warning
+    target_match_re:
+      alertname: PaymentLatency.*
+    equal: ['service']
+
+# ─── Receivers ──────────────────────────────────────────────────────────────
+receivers:
+  # Default receiver - logs to webhook (for debugging)
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://webhook-handler:3001/alerts'
+        send_resolved: true
+
+  # ─── Slack Configuration ─────────────────────────────────────────────────
+  - name: 'slack-notifications'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#alerts'
+        send_resolved: true
+        username: 'REZ Alert Manager'
+        title: |
+          [{{ .Status | toUpper }}] {{ if eq .Status "firing" }}:fire:{{ else }}:white_check_mark:{{ end }} {{ .GroupLabels.alertname }}
+        title_link: '{{ .ExternalURL }}'
+        text: |
+          {{ range .Alerts }}
+          {{ if .Annotations.summary }}*Summary:* {{ .Annotations.summary }}{{ end }}
+          {{ if .Annotations.description }}*Details:* {{ .Annotations.description }}{{ end }}
+          {{ if .Labels.service }}*Service:* {{ .Labels.service }}{{ end }}
+          {{ if .Labels.job }}*Job:* {{ .Labels.job }}{{ end }}
+          *Severity:* {{ .Labels.severity }}
+          *Time:* {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}
+          {{ if .Annotations.runbook_url }}*Runbook:* {{ .Annotations.runbook_url }}{{ end }}
+          {{ if .Annotations.dashboard_url }}*Dashboard:* {{ .Annotations.dashboard_url }}{{ end }}
+          {{ end }}
+        footer: 'REZ Alert Manager'
+        footer_icon: 'https://grafana.rez.money/public/img/grafana_icon.svg'
+        color: |
+          {{ if eq .Status "firing" }}
+            {{ if eq .CommonLabels.severity "critical" }}danger{{ else }}warning{{ end }}
+          {{ else }}good{{ end }}
+        actions:
+          - type: 'button'
+            text: 'View Runbook'
+            url: '{{ first .Alerts.Annotations.runbook_url }}'
+          - type: 'button'
+            text: 'View Dashboard'
+            url: '{{ first .Alerts.Annotations.dashboard_url }}'
+          - type: 'button'
+            text: 'View in Alertmanager'
+            url: '{{ .ExternalURL }}'
+        fields:
+          - title: 'Alert Name'
+            value: '{{ .GroupLabels.alertname }}'
+            short: true
+          - title: 'Status'
+            value: '{{ .Status }}'
+            short: true
+
+  # ─── Finance Team Slack ───────────────────────────────────────────────────
+  - name: 'finance-slack'
+    slack_configs:
+      - api_url: '${SLACK_FINANCE_WEBHOOK_URL:-${SLACK_WEBHOOK_URL}}'
+        channel: '#finance-alerts'
+        send_resolved: true
+        username: 'REZ Finance Alerts'
+        title: |
+          [{{ .Status | toUpper }}] Finance Alert: {{ .GroupLabels.alertname }}
+        text: |
+          {{ range .Alerts }}
+          *Payment Alert:* {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+        color: danger
+
+  # ─── AI Team Slack ────────────────────────────────────────────────────────
+  - name: 'ai-slack'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#ai-alerts'
+        send_resolved: true
+        username: 'REZ AI Alerts'
+        title: |
+          [{{ .Status | toUpper }}] AI Alert: {{ .GroupLabels.alertname }}
+        text: |
+          {{ range .Alerts }}
+          *Summary:* {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+        color: warning
+
+  # ─── PagerDuty Critical ───────────────────────────────────────────────────
+  - name: 'pagerduty-critical'
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_ROUTING_KEY}'
+        routing_key: '${PAGERDUTY_ROUTING_KEY}'
+        severity: critical
+        send_resolved: true
+        client: 'REZ Ecosystem'
+        client_url: 'https://grafana.rez.money'
+        incident_key: '{{ .GroupLabels.alertname }}-{{ .CommonLabels.service }}'
+        description: |
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+        details:
+          - key: alertname
+            value: '{{ .GroupLabels.alertname }}'
+          - key: severity
+            value: '{{ .CommonLabels.severity }}'
+          - key: service
+            value: '{{ .CommonLabels.service }}'
+          - key: cluster
+            value: '{{ .CommonLabels.cluster }}'
+          - key: summary
+            value: '{{ .Alerts.Annotations.summary }}'
+          - key: runbook_url
+            value: '{{ .Alerts.Annotations.runbook_url }}'
+          - key: dashboard_url
+            value: '{{ .Alerts.Annotations.dashboard_url }}'
+
+  # ─── Email to Ops ─────────────────────────────────────────────────────────
+  - name: 'ops-email'
+    email_configs:
+      - to: 'ops@rez.money'
+        send_resolved: true
+        headers:
+          subject: '[{{ .Status | toUpper }}] REZ Alert: {{ .GroupLabels.alertname }}'
+        html: |
+          <html>
+          <body>
+          <h2>REZ Ecosystem Alert</h2>
+          <table>
+            <tr><td><b>Alert:</b></td><td>{{ .GroupLabels.alertname }}</td></tr>
+            <tr><td><b>Status:</b></td><td>{{ .Status }}</td></tr>
+            <tr><td><b>Severity:</b></td><td>{{ .CommonLabels.severity }}</td></tr>
+            <tr><td><b>Service:</b></td><td>{{ .CommonLabels.service }}</td></tr>
+          </table>
+          <h3>Alerts</h3>
+          {{ range .Alerts }}
+          <h4>{{ .Annotations.summary }}</h4>
+          <p>{{ .Annotations.description }}</p>
+          <p><a href="{{ .Annotations.runbook_url }}">Runbook</a></p>
+          <p><a href="{{ .Annotations.dashboard_url }}">Dashboard</a></p>
+          {{ end }}
+          </body>
+          </html>
+
+  # ─── Finance Email ─────────────────────────────────────────────────────────
+  - name: 'finance-email'
+    email_configs:
+      - to: 'finance-alerts@rez.money,ops@rez.money'
+        send_resolved: true
+        headers:
+          subject: '[CRITICAL] REZ Payment Alert: {{ .GroupLabels.alertname }}'
+        html: |
+          <html>
+          <body>
+          <h2 style="color:red;">REZ Payment Service Alert - ACTION REQUIRED</h2>
+          <table>
+            <tr><td><b>Alert:</b></td><td>{{ .GroupLabels.alertname }}</td></tr>
+            <tr><td><b>Status:</b></td><td>{{ .Status }}</td></tr>
+          </table>
+          {{ range .Alerts }}
+          <h3>{{ .Annotations.summary }}</h3>
+          <p>{{ .Annotations.description }}</p>
+          {{ end }}
+          <p><a href="https://grafana.rez.money/d/rez-finance">View Finance Dashboard</a></p>
+          </body>
+          </html>
+
+# ─── Time Intervals ──────────────────────────────────────────────────────────
+# Mute critical alerts during maintenance windows
+time_intervals:
+  - name: 'maintenance'
+    intervals:
+      # Example: Mute every Sunday 2am-4am UTC
+      # - weekdays: ['sunday']
+      #   times:
+      #     - start_time: '02:00'
+      #       end_time: '04:00'

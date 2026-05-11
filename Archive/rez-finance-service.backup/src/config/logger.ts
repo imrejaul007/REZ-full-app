@@ -1,0 +1,14 @@
+import winston from 'winston';
+
+export const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    process.env.NODE_ENV === 'production'
+      ? winston.format.json()
+      : winston.format.prettyPrint(),
+  ),
+  transports: [new winston.transports.Console()],
+  defaultMeta: { service: process.env.SERVICE_NAME || 'rez-finance-service' },
+});

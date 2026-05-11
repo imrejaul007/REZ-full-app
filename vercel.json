@@ -1,0 +1,11 @@
+{
+  "projects": [
+    "apps/*"
+  ],
+  "experimentalServices": {
+    "do-backend": {
+      "entrypoint": "do-app/do-backend",
+      "routePrefix": "/"
+    }
+  }
+}

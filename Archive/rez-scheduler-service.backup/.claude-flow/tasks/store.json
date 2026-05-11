@@ -1,0 +1,90 @@
+{
+  "tasks": {
+    "task-1776188083416-7mghrn": {
+      "taskId": "task-1776188083416-7mghrn",
+      "type": "bugfix",
+      "description": "Verify rezmerchant Vercel build passes after metro.config.js and tsconfig.json fix. Check git status at /Users/rejaulkarim/Documents/ReZ Full App/rezmerchant/rez-merchant-master. Already pushed fix for @karim4987498/shared path aliases. Report build result.",
+      "priority": "high",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [
+        "vercel",
+        "merchant",
+        "build"
+      ],
+      "createdAt": "2026-04-14T17:34:43.416Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1776188113349-4sfi5t": {
+      "taskId": "task-1776188113349-4sfi5t",
+      "type": "bugfix",
+      "description": "Verify adBazaar Vercel build passes after fixing Supabase PromiseLike catch TS error. File: /Users/rejaulkarim/Documents/ReZ Full App/adBazaar/src/app/api/webhooks/razorpay/route.ts. Fix: replace .then().catch() with try/catch. Already pushed. Report build result.",
+      "priority": "high",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [
+        "vercel",
+        "adbazaar",
+        "build"
+      ],
+      "createdAt": "2026-04-14T17:35:13.349Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1776188171347-6tj9c1": {
+      "taskId": "task-1776188171347-6tj9c1",
+      "type": "bugfix",
+      "description": "Audit /Users/rejaulkarim/Documents/ReZ Full App/rezbackend/rez-backend-master for TypeScript/build errors. Run 'npm run build' or 'npx tsc --noEmit' to find errors. Fix all TS errors found. Push fixes. Report results.",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [
+        "backend",
+        "typescript",
+        "audit"
+      ],
+      "createdAt": "2026-04-14T17:36:11.348Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1776188181405-nx77l2": {
+      "taskId": "task-1776188181405-nx77l2",
+      "type": "bugfix",
+      "description": "Audit /Users/rejaulkarim/Documents/ReZ Full App/rez-now for TypeScript/build errors. Run 'npm run build' or 'npx tsc --noEmit' to find errors. Fix all TS errors found. Push fixes. Report results.",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [
+        "rez-now",
+        "typescript",
+        "audit"
+      ],
+      "createdAt": "2026-04-14T17:36:21.405Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1776188191006-pc8tag": {
+      "taskId": "task-1776188191006-pc8tag",
+      "type": "bugfix",
+      "description": "Audit Hotel OTA repo at /Users/rejaulkarim/Documents/ReZ Full App/Hotel OTA for TypeScript/build errors. Run 'npm run build' or 'npx tsc --noEmit' to find errors. Fix all TS errors found. Push fixes. Report results.",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [
+        "hotel-ota",
+        "typescript",
+        "audit"
+      ],
+      "createdAt": "2026-04-14T17:36:31.006Z",
+      "startedAt": null,
+      "completedAt": null
+    }
+  },
+  "version": "3.0.0"
+}

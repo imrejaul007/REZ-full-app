@@ -1,0 +1,440 @@
+# =============================================================================
+# REZ Platform - Kubernetes Service Manifest
+# =============================================================================
+# Contains services for all 15 REZ microservices
+# =============================================================================
+
+---
+# =============================================================================
+# rez-delivery-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-delivery-service
+  namespace: rez-production
+  labels:
+    app: rez-delivery-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3000"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+  selector:
+    app: rez-delivery-service
+
+---
+# =============================================================================
+# rez-analytics-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-analytics-service
+  namespace: rez-production
+  labels:
+    app: rez-analytics-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3001"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3001
+      protocol: TCP
+    - name: metrics
+      port: 9091
+      targetPort: 9091
+      protocol: TCP
+  selector:
+    app: rez-analytics-service
+
+---
+# =============================================================================
+# rez-payment-links-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-payment-links-service
+  namespace: rez-production
+  labels:
+    app: rez-payment-links-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3002"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3002
+      protocol: TCP
+    - name: metrics
+      port: 9092
+      targetPort: 9092
+      protocol: TCP
+  selector:
+    app: rez-payment-links-service
+
+---
+# =============================================================================
+# rez-journey-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-journey-service
+  namespace: rez-production
+  labels:
+    app: rez-journey-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3003"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3003
+      protocol: TCP
+    - name: metrics
+      port: 9093
+      targetPort: 9093
+      protocol: TCP
+  selector:
+    app: rez-journey-service
+
+---
+# =============================================================================
+# rez-automation-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-automation-service
+  namespace: rez-production
+  labels:
+    app: rez-automation-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3004"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3004
+      protocol: TCP
+    - name: metrics
+      port: 9094
+      targetPort: 9094
+      protocol: TCP
+  selector:
+    app: rez-automation-service
+
+---
+# =============================================================================
+# rez-gdpr-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-gdpr-service
+  namespace: rez-production
+  labels:
+    app: rez-gdpr-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3005"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3005
+      protocol: TCP
+    - name: metrics
+      port: 9095
+      targetPort: 9095
+      protocol: TCP
+  selector:
+    app: rez-gdpr-service
+
+---
+# =============================================================================
+# rez-validation-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-validation-service
+  namespace: rez-production
+  labels:
+    app: rez-validation-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3006"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3006
+      protocol: TCP
+    - name: metrics
+      port: 9096
+      targetPort: 9096
+      protocol: TCP
+  selector:
+    app: rez-validation-service
+
+---
+# =============================================================================
+# rez-cohort-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-cohort-service
+  namespace: rez-production
+  labels:
+    app: rez-cohort-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3007"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3007
+      protocol: TCP
+    - name: metrics
+      port: 9097
+      targetPort: 9097
+      protocol: TCP
+  selector:
+    app: rez-cohort-service
+
+---
+# =============================================================================
+# rez-currency-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-currency-service
+  namespace: rez-production
+  labels:
+    app: rez-currency-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3008"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3008
+      protocol: TCP
+    - name: metrics
+      port: 9098
+      targetPort: 9098
+      protocol: TCP
+  selector:
+    app: rez-currency-service
+
+---
+# =============================================================================
+# rez-invoice-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-invoice-service
+  namespace: rez-production
+  labels:
+    app: rez-invoice-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3009"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3009
+      protocol: TCP
+    - name: metrics
+      port: 9099
+      targetPort: 9099
+      protocol: TCP
+  selector:
+    app: rez-invoice-service
+
+---
+# =============================================================================
+# rez-menu-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-menu-service
+  namespace: rez-production
+  labels:
+    app: rez-menu-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3010"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3010
+      protocol: TCP
+    - name: metrics
+      port: 9100
+      targetPort: 9100
+      protocol: TCP
+  selector:
+    app: rez-menu-service
+
+---
+# =============================================================================
+# rez-refund-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-refund-service
+  namespace: rez-production
+  labels:
+    app: rez-refund-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3011"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3011
+      protocol: TCP
+    - name: metrics
+      port: 9101
+      targetPort: 9101
+      protocol: TCP
+  selector:
+    app: rez-refund-service
+
+---
+# =============================================================================
+# rez-tracking-service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-tracking-service
+  namespace: rez-production
+  labels:
+    app: rez-tracking-service
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3012"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3012
+      protocol: TCP
+    - name: metrics
+      port: 9102
+      targetPort: 9102
+      protocol: TCP
+  selector:
+    app: rez-tracking-service
+
+---
+# =============================================================================
+# rez-websocket-hub
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-websocket-hub
+  namespace: rez-production
+  labels:
+    app: rez-websocket-hub
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3013"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3013
+      protocol: TCP
+    - name: metrics
+      port: 9103
+      targetPort: 9103
+      protocol: TCP
+  selector:
+    app: rez-websocket-hub
+
+---
+# =============================================================================
+# rez-rate-limit
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: rez-rate-limit
+  namespace: rez-production
+  labels:
+    app: rez-rate-limit
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3014"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3014
+      protocol: TCP
+    - name: metrics
+      port: 9104
+      targetPort: 9104
+      protocol: TCP
+  selector:
+    app: rez-rate-limit

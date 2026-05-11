@@ -1,0 +1,171 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # UNIFIED SERVICES
+  # ============================================
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  intent-service:
+    build: ./rez-intent-service
+    ports:
+      - "4009:4009"
+    environment:
+      - NODE_ENV=production
+      - PORT=4009
+      - REDIS_URL=redis://redis:6379
+      - MONGODB_URI=mongodb://mongodb:27017/intent-service
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4009/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  copilot:
+    build: ./rez-copilot
+    ports:
+      - "4026:4026"
+    environment:
+      - NODE_ENV=production
+      - PORT=4026
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4026/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  decision-service:
+    build: ./rez-decision-service
+    ports:
+      - "4027:4027"
+    environment:
+      - NODE_ENV=production
+      - PORT=4027
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4027/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  ad-platform:
+    build: ./rez-ad-platform
+    ports:
+      - "4028:4028"
+    environment:
+      - NODE_ENV=production
+      - PORT=4028
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4028/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - USE_NEW_INTENT_SERVICE=true
+      - USE_NEW_COPILOT=true
+      - USE_NEW_DECISION_SERVICE=true
+      - USE_NEW_AD_PLATFORM=true
+      - NEW_INTENT_SERVICE_URL=http://intent-service:4009
+      - NEW_COPILOT_URL=http://copilot:4026
+      - NEW_DECISION_SERVICE_URL=http://decision-service:4027
+      - NEW_AD_SERVICE_URL=http://ad-platform:4028
+    depends_on:
+      intent-service:
+        condition: service_started
+      copilot:
+        condition: service_started
+    restart: unless-stopped
+
+  # ============================================
+  # MONITORING
+  # ============================================
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana:/etc/grafana/provisioning/dashboards
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  mongo-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  default:
+    name: rez-network

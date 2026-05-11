@@ -1,0 +1,47 @@
+# render.yaml — Gamification Service
+# Deploy: render blueprint create (CLI) or push to GitHub + link on Render dashboard
+#
+# REQUIRED — set in Render dashboard > Service > Environment (not in this file):
+#   MONGODB_URI              — MongoDB Atlas cluster for gamification data
+#   JWT_SECRET               — shared with other ReZ services (min 32 chars)
+#   INTERNAL_SERVICE_TOKEN   — shared across all services (min 16 chars)
+#   AUTH_SERVICE_URL         — Auth service URL for user validation
+#   WALLET_SERVICE_URL      — Wallet service URL for point transfers
+
+services:
+  - type: web
+    name: rez-gamification-service
+    env: node
+    region: singapore
+    plan: free
+    nodeVersion: '20'
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    healthCheckInterval: 30
+    healthCheckThreshold: 3
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '3001'
+      - key: TRUST_PROXY_HOPS
+        value: '1'
+      - key: MONGODB_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: AUTH_SERVICE_URL
+        sync: false
+      - key: WALLET_SERVICE_URL
+        sync: false
+      - key: MERCHANT_SERVICE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        value: 'https://rez.money,https://app.rez.money,https://admin.rez.money'
+      - key: RATE_LIMIT_WINDOW_MS
+        value: '900000'
+      - key: RATE_LIMIT_MAX
+        value: '100'
+      - key: SENTRY_DSN
+        sync: false

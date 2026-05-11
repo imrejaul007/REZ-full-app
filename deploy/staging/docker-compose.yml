@@ -1,0 +1,288 @@
+version: '3.8'
+
+services:
+  # MongoDB
+  mongodb:
+    image: mongo:6.0
+    container_name: rez-staging-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: rez-staging-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Merchant Service (Loyalty)
+  merchant-service:
+    build:
+      context: ../rez-merchant-service
+      dockerfile: Dockerfile
+    container_name: rez-staging-merchant
+    restart: unless-stopped
+    ports:
+      - "4005:4005"
+    environment:
+      NODE_ENV: staging
+      MONGODB_URI: mongodb://mongodb:27017/rez_staging
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 4005
+      LOG_LEVEL: debug
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Order Service
+  order-service:
+    build:
+      context: ../rez-order-service
+      dockerfile: Dockerfile
+    container_name: rez-staging-order
+    restart: unless-stopped
+    ports:
+      - "4006:4006"
+    environment:
+      NODE_ENV: staging
+      MONGODB_URI: mongodb://mongodb:27017/rez_staging_orders
+      REDIS_URL: redis://redis:6379
+      PORT: 4006
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Payment Service
+  payment-service:
+    build:
+      context: ../rez-payment-service
+      dockerfile: Dockerfile
+    container_name: rez-staging-payment
+    restart: unless-stopped
+    ports:
+      - "4001:4001"
+    environment:
+      NODE_ENV: staging
+      MONGODB_URI: mongodb://mongodb:27017/rez_staging_payments
+      REDIS_URL: redis://redis:6379
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+      PORT: 4001
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Wallet Service
+  wallet-service:
+    build:
+      context: ../rez-wallet-service
+      dockerfile: Dockerfile
+    container_name: rez-staging-wallet
+    restart: unless-stopped
+    ports:
+      - "4004:4004"
+    environment:
+      NODE_ENV: staging
+      MONGODB_URI: mongodb://mongodb:27017/rez_staging_wallet
+      REDIS_URL: redis://redis:6379
+      PORT: 4004
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Karma Service
+  karma-service:
+    build:
+      context: ../rez-karma-service
+      dockerfile: Dockerfile
+    container_name: rez-staging-karma
+    restart: unless-stopped
+    ports:
+      - "4003:4003"
+    environment:
+      NODE_ENV: staging
+      MONGODB_URI: mongodb://mongodb:27017/rez_staging_karma
+      REDIS_URL: redis://redis:6379
+      PORT: 4003
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Marketing Service
+  marketing-service:
+    build:
+      context: ../rez-marketing-backend
+      dockerfile: Dockerfile
+    container_name: rez-staging-marketing
+    restart: unless-stopped
+    ports:
+      - "4002:4002"
+    environment:
+      NODE_ENV: staging
+      MONGODB_URI: mongodb://mongodb:27017/rez_staging_marketing
+      REDIS_URL: redis://redis:6379
+      PORT: 4002
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Consumer App (Web)
+  consumer-app:
+    build:
+      context: ../rez-app-consumer
+      dockerfile: Dockerfile
+    container_name: rez-staging-consumer
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: staging
+      NEXT_PUBLIC_API_URL: http://localhost:4005/api
+    depends_on:
+      - merchant-service
+
+  # Karma App (Web)
+  karma-app:
+    build:
+      context: ../rez-karma-app
+      dockerfile: Dockerfile
+    container_name: rez-staging-karma-app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: staging
+      NEXT_PUBLIC_API_URL: http://localhost:4003/api
+    depends_on:
+      - karma-service
+
+  # Analytics v2 (NEW)
+  analytics-v2:
+    build:
+      context: ../rez-analytics-v2
+      dockerfile: Dockerfile
+    container_name: rez-staging-analytics-v2
+    restart: unless-stopped
+    ports:
+      - "3010:3010"
+    environment:
+      NODE_ENV: staging
+      MONGODB_URI: mongodb://mongodb:27017/rez_staging_analytics
+      REDIS_URL: redis://redis:6379
+      PORT: 3010
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Staff Service (NEW)
+  staff-service:
+    build:
+      context: ../rez-staff-service
+      dockerfile: Dockerfile
+    container_name: rez-staging-staff
+    restart: unless-stopped
+    ports:
+      - "3011:3011"
+    environment:
+      NODE_ENV: staging
+      MONGODB_URI: mongodb://mongodb:27017/rez_staging_staff
+      PORT: 3011
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  # Delivery Service (NEW)
+  delivery-service:
+    build:
+      context: ../rez-delivery-service
+      dockerfile: Dockerfile
+    container_name: rez-staging-delivery
+    restart: unless-stopped
+    ports:
+      - "3012:3012"
+    environment:
+      NODE_ENV: staging
+      MONGODB_URI: mongodb://mongodb:27017/rez_staging_delivery
+      REDIS_URL: redis://redis:6379
+      PORT: 3012
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Capital Service (NEW)
+  capital-service:
+    build:
+      context: ../rez-capital-service
+      dockerfile: Dockerfile
+    container_name: rez-staging-capital
+    restart: unless-stopped
+    ports:
+      - "3013:3013"
+    environment:
+      NODE_ENV: staging
+      MONGODB_URI: mongodb://mongodb:27017/rez_staging_capital
+      PORT: 3013
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  # Corpperks Service (UPDATED)
+  corpperks-service:
+    build:
+      context: ../rez-corpperks-service
+      dockerfile: Dockerfile
+    container_name: rez-staging-corpperks
+    restart: unless-stopped
+    ports:
+      - "3014:3014"
+    environment:
+      NODE_ENV: staging
+      MONGODB_URI: mongodb://mongodb:27017/rez_staging_corpperks
+      REDIS_URL: redis://redis:6379
+      PORT: 3014
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  default:
+    name: rez-staging-network

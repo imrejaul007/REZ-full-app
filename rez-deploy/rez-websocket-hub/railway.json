@@ -1,0 +1,53 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile",
+    "buildCommand": "npm run build"
+  },
+  "deploy": {
+    "numReplicas": 2,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10,
+    "healthCheckCommand": {
+      "type": "HTTP",
+      "path": "/health",
+      "intervalSeconds": 30,
+      "timeoutSeconds": 10,
+      "restartThreshold": 3
+    },
+    "startCommand": "node dist/main.js",
+    "metadata": {
+      "containerPort": 3013
+    },
+    "resources": {
+      "cpu": {
+        "type": "SHARED",
+        "value": 1
+      },
+      "memory": {
+        "type": "CONVENTIONAL",
+        "value": 1024
+      }
+    },
+    "autoscaling": {
+      "enabled": true,
+      "min": 2,
+      "max": 20,
+      "targetCpuPercentage": 70,
+      "targetMemoryPercentage": 80
+    },
+    "regions": ["us-west-2", "us-east-1"]
+  },
+  "variables": {
+    "NODE_ENV": "production",
+    "PORT": "3013",
+    "APP_NAME": "rez-websocket-hub"
+  },
+  "metrics": {
+    "prometheus": {
+      "enabled": true,
+      "path": "/metrics"
+    }
+  }
+}

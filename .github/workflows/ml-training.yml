@@ -1,0 +1,183 @@
+name: ML Training Pipeline
+
+on:
+  schedule:
+    # Run every Sunday at 2 AM
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  RETRY_MAX_ATTEMPTS: 3
+
+jobs:
+  # ============================================
+  # GENERATE TRAINING DATA
+  # ============================================
+  generate-data:
+    name: Generate Training Data
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+        timeout-minutes: 5
+
+      - name: Generate Training Data
+        timeout-minutes: 20
+        run: |
+          cd rez-ml-training-generator
+          npm install
+          npm run generate:all
+
+          # Save generated data
+          mkdir -p training-data-output
+          cp -r training-data/* training-data-output/
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Upload Training Data
+        uses: actions/upload-artifact@v4
+        with:
+          name: training-data
+          path: training-data-output/
+          retention-days: 30
+        timeout-minutes: 5
+
+  # ============================================
+  # TRAIN MODELS
+  # ============================================
+  train-models:
+    name: Train Models
+    needs: generate-data
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+        timeout-minutes: 5
+
+      - name: Download Training Data
+        uses: actions/download-artifact@v4
+        with:
+          name: training-data
+          path: ./training-data
+        timeout-minutes: 5
+
+      - name: Train Models
+        timeout-minutes: 100
+        run: |
+          cd rez-ml-engine
+          npm install
+          npm run train:all
+
+          # Save trained models
+          mkdir -p trained-models-output
+          cp -r trained-models/* trained-models-output/
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Upload Models
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-models
+          path: trained-models-output/
+          retention-days: 90
+        timeout-minutes: 5
+
+  # ============================================
+  # VALIDATE MODELS
+  # ============================================
+  validate-models:
+    name: Validate Models
+    needs: train-models
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+        timeout-minutes: 5
+
+      - name: Download Models
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-models
+          path: ./models
+        timeout-minutes: 5
+
+      - name: Validate Models
+        timeout-minutes: 15
+        run: node validate-models.js
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Check Quality Gates
+        timeout-minutes: 5
+        run: |
+          # Quality gate: Accuracy >= 70%
+          ACCURACY=$(cat models/metrics.json | jq -r '.accuracy')
+          if (( $(echo "$ACCURACY < 0.70" | bc -l) )); then
+            echo "Quality gate failed: Accuracy $ACCURACY < 0.70"
+            exit 1
+          fi
+          echo "Quality gate passed: Accuracy $ACCURACY >= 0.70"
+
+  # ============================================
+  # DEPLOY TO MODEL REGISTRY
+  # ============================================
+  deploy-models:
+    name: Deploy to Registry
+    needs: validate-models
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 5
+
+      - name: Download Models
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-models
+          path: ./models
+        timeout-minutes: 5
+
+      - name: Deploy to Registry
+        timeout-minutes: 10
+        run: |
+          # Upload to model registry
+          curl -X POST http://localhost:4101/api/v1/models/upload \
+            -F "file=@models/fraud-model-v1.0.0.json"
+          curl -X POST http://localhost:4101/api/v1/models/upload \
+            -F "file=@models/recommendation-model-v1.0.0.json"
+          curl -X POST http://localhost:4101/api/v1/models/upload \
+            -F "file=@models/price-model-v1.0.0.json"
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Notify Success
+        if: success()
+        timeout-minutes: 3
+        run: |
+          echo "ML Training Pipeline completed successfully!"

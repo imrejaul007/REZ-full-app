@@ -1,0 +1,4 @@
+{
+  "adminEndpoints": ["10.0.0.0/8"],
+  "internalServices": ["172.16.0.0/12"]
+}

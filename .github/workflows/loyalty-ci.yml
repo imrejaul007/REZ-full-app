@@ -1,0 +1,356 @@
+# REZ Loyalty Ecosystem - CI/CD Pipeline
+# GitHub Actions workflow for all loyalty microservices
+
+name: REZ Loyalty CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'rez-*-service/**'
+      - 'REZ-*-service/**'
+      - 'docker-compose*.yml'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'rez-*-service/**'
+      - 'REZ-*-service/**'
+
+env:
+  NODE_VERSION: '20'
+  MONGO_VERSION: '7.0'
+  REDIS_VERSION: '7-alpine'
+
+jobs:
+  # ========================================================================
+  # LINT & TYPE CHECK
+  # ========================================================================
+
+  lint:
+    name: Lint Services
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - profile-aggregator-service
+          - streak-service
+          - score-service
+          - cross-merchant-service
+          - karma-loyalty-bridge
+          - loyalty-monitoring
+          - event-bus
+          - notifications-service
+          - webhook-service
+          - identity-service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            rez-${{ matrix.service }}/node_modules
+            REZ-${{ matrix.service }}/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install dependencies
+        run: |
+          cd rez-${{ matrix.service }}
+          npm ci || npm install
+
+      - name: Run linter
+        run: |
+          cd rez-${{ matrix.service }}
+          npm run lint || echo "No lint script"
+
+      - name: Type check
+        run: |
+          cd rez-${{ matrix.service }}
+          npm run type-check || npm run build
+
+  # ========================================================================
+  # TEST
+  # ========================================================================
+
+  test:
+    name: Test ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - profile-aggregator-service
+          - streak-service
+          - score-service
+          - cross-merchant-service
+          - karma-loyalty-bridge
+          - loyalty-monitoring
+          - event-bus
+          - notifications-service
+          - webhook-service
+          - identity-service
+
+    services:
+      mongodb:
+        image: mongo:${{ env.MONGO_VERSION }}
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongosh localhost:27017/test --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:${{ env.REDIS_VERSION }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          cd rez-${{ matrix.service }}
+          npm ci || npm install
+
+      - name: Run tests
+        run: |
+          cd rez-${{ matrix.service }}
+          npm test
+        env:
+          MONGODB_URI: mongodb://localhost:27017/test
+          REDIS_URL: redis://localhost:6379
+          CI: true
+
+  # ========================================================================
+  # BUILD DOCKER IMAGES
+  # ========================================================================
+
+  build:
+    name: Build ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - profile-aggregator-service
+          - streak-service
+          - score-service
+          - cross-merchant-service
+          - karma-loyalty-bridge
+          - loyalty-monitoring
+          - event-bus
+          - notifications-service
+          - webhook-service
+          - identity-service
+          - dlq-service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: rez/${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./rez-${{ matrix.service }}
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ========================================================================
+  # DEPLOY TO STAGING
+  # ========================================================================
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging..."
+          # Add your deployment script here
+          # Example: ssh user@staging "docker-compose -f docker-compose.staging.yml up -d"
+
+      - name: Run health checks
+        run: |
+          sleep 30
+          curl -f http://staging-api:3000/health || exit 1
+          curl -f http://staging-profile:4025/health || exit 1
+          curl -f http://staging-streak:4026/health || exit 1
+
+  # ========================================================================
+  # INTEGRATION TESTS
+  # ========================================================================
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: github.ref == 'refs/heads/main'
+
+    services:
+      mongodb:
+        image: mongo:${{ env.MONGO_VERSION }}
+        ports:
+          - 27017:27017
+
+      redis:
+        image: redis:${{ env.REDIS_VERSION }}
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install test dependencies
+        run: |
+          cd rez-loyalty-tests
+          npm ci
+
+      - name: Run integration tests
+        run: |
+          cd rez-loyalty-tests
+          npm run test:integration
+        env:
+          PROFILE_URL: http://staging-profile:4025
+          STREAK_URL: http://staging-streak:4026
+          SCORE_URL: http://staging-score:4028
+          CROSS_MERCHANT_URL: http://staging-cross-merchant:4027
+          KARMA_BRIDGE_URL: http://staging-bridge:4029
+          REDIS_URL: redis://localhost:6379
+          MONGODB_URI: mongodb://localhost:27017/test
+
+  # ========================================================================
+  # DEPLOY TO PRODUCTION
+  # ========================================================================
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [integration-tests]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production..."
+          # Add your production deployment script here
+          # Use blue-green deployment or canary releases
+
+      - name: Run smoke tests
+        run: |
+          sleep 60
+          curl -f https://api.rez.app/health || exit 1
+          curl -f https://profile.rez.app/health || exit 1
+          curl -f https://streak.rez.app/health || exit 1
+
+  # ========================================================================
+  # NOTIFY
+  # ========================================================================
+
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: always()
+
+    steps:
+      - name: Notify Slack
+        if: needs.deploy-production.result == 'success'
+        uses: slackapi/slack-action@v2
+        with:
+          payload: |
+            {
+              "text": "✅ REZ Loyalty Deployment Successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*REZ Loyalty Ecosystem*\nDeployment to production completed successfully!"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+
+      - name: Notify on failure
+        if: needs.deploy-production.result == 'failure'
+        uses: slackapi/slack-action@v2
+        with:
+          payload: |
+            {
+              "text": "❌ REZ Loyalty Deployment Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*REZ Loyalty Ecosystem*\nDeployment to production failed!\nPlease check the logs."
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}

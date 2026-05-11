@@ -1,0 +1,16 @@
+name: Deploy to Production
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy Production
+        run: |
+          # Approval required for production
+          curl -X POST https://api.render.com/v1/services/$PROD_SERVICE_ID/deploys

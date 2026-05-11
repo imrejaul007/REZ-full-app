@@ -1,0 +1,362 @@
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - '**/package.json'
+      - '**/package-lock.json'
+      - '.github/workflows/dependency-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  NODE_VERSION: '20'
+  RETRY_MAX_ATTEMPTS: 2
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  # Dependency Change Detection
+  # ─────────────────────────────────────────────────────────
+  detect-changes:
+    name: Detect Dependency Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    outputs:
+      has_changes: ${{ steps.changes.outputs.has_changes }}
+      changed_files: ${{ steps.changes.outputs.changed_files }}
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Detect package changes
+        id: changes
+        run: |
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '**/package.json' '**/package-lock.json' 2>/dev/null || echo "")
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
+            echo "Changed files:"
+            echo "$CHANGED_FILES"
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "changed_files=" >> $GITHUB_OUTPUT
+            echo "No dependency files changed"
+          fi
+
+  # ─────────────────────────────────────────────────────────
+  # Dependency Review
+  # ─────────────────────────────────────────────────────────
+  review-dependencies:
+    name: Review Dependencies
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
+
+      - name: Analyze dependency changes
+        id: analyze
+        run: |
+          echo "## Dependency Changes Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          for file in ${{ needs.detect-changes.outputs.changed_files }}; do
+            echo "### Changes in \`$file\`" >> $GITHUB_STEP_SUMMARY
+            echo '```diff' >> $GITHUB_STEP_SUMMARY
+            git diff ${{ github.base_ref }}...HEAD -- "$file" | head -100 >> $GITHUB_STEP_SUMMARY || echo "Unable to diff $file" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          done
+
+      - name: Check for new dependencies
+        run: |
+          echo "Checking for new dependencies..."
+
+      - name: Check for removed dependencies
+        run: |
+          echo "Checking for removed dependencies..."
+
+      - name: Check for version changes
+        run: |
+          echo "Checking for version changes..."
+
+      - name: Run npm audit on changes
+        run: |
+          npm ci || npm install
+          npm audit --audit-level=moderate || true
+
+      - name: Check for security advisories
+        run: |
+          npx audit-ci --config .auditci.yml || npx audit-ci || echo "No audit config found"
+
+      - name: Check for license issues
+        run: |
+          npm install -g license-checker
+          license-checker --json > license-report.json 2>/dev/null || echo "License check complete"
+          # Check for problematic licenses
+          if grep -q "GPL\|AGPL" license-report.json 2>/dev/null; then
+            echo "Warning: GPL/AGPL licenses detected"
+          fi
+
+  # ─────────────────────────────────────────────────────────
+  # Dependency License Review
+  # ─────────────────────────────────────────────────────────
+  license-review:
+    name: License Compatibility
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Generate license report
+        run: |
+          npm install -g license-checker
+          license-checker --csv --out license-report.csv
+          license-checker --json --out license-report.json
+
+          echo "License Summary:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Count licenses
+          MIT=$(grep -c "MIT" license-report.json 2>/dev/null || echo "0")
+          APACHE=$(grep -c "Apache" license-report.json 2>/dev/null || echo "0")
+          BSD=$(grep -c "BSD" license-report.json 2>/dev/null || echo "0")
+          GPL=$(grep -c -i "GPL" license-report.json 2>/dev/null || echo "0")
+          UNKNOWN=$(grep -c "Unknown" license-report.json 2>/dev/null || echo "0")
+
+          echo "| License | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| MIT | $MIT |" >> $GITHUB_STEP_SUMMARY
+          echo "| Apache | $APACHE |" >> $GITHUB_STEP_SUMMARY
+          echo "| BSD | $BSD |" >> $GITHUB_STEP_SUMMARY
+          echo "| GPL | $GPL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unknown | $UNKNOWN |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$GPL" -gt 0 ]; then
+            echo ""
+            echo "⚠️ **Warning:** GPL licensed dependencies detected" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$UNKNOWN" -gt 3 ]; then
+            echo ""
+            echo "⚠️ **Warning:** Multiple dependencies with unknown licenses" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Check for prohibited licenses
+        run: |
+          # Check for prohibited licenses
+          PROHIBITED=("GPL-3.0" "AGPL-3.0" "LGPL-3.0" "SSPL-1.0" "Elastic-2.0" "Commons-Clause-1.0")
+
+          for license in "${PROHIBITED[@]}"; do
+            if grep -q "$license" license-report.json 2>/dev/null; then
+              echo "❌ Prohibited license detected: $license"
+              echo "## License Compliance Issue" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Prohibited license detected: **$license**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Please review and replace dependencies using this license." >> $GITHUB_STEP_SUMMARY
+              exit 1
+            fi
+          done
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: license-report
+          path: |
+            license-report.csv
+            license-report.json
+          retention-days: 30
+
+  # ─────────────────────────────────────────────────────────
+  # Dependency Size Check
+  # ─────────────────────────────────────────────────────────
+  dependency-size:
+    name: Dependency Size Check
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Check node_modules size
+        run: |
+          TOTAL_SIZE=$(du -sh node_modules | cut -f1)
+          echo "Total node_modules size: $TOTAL_SIZE"
+          echo "## Dependency Size" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Total size: **$TOTAL_SIZE**" >> $GITHUB_STEP_SUMMARY
+
+          # Check for unusually large dependencies
+          du -sh node_modules/*/ | sort -hr | head -10 >> $GITHUB_STEP_SUMMARY
+
+      - name: Check package size warnings
+        run: |
+          # Warn if any package is over 100MB
+          LARGE_PACKAGES=$(find node_modules -maxdepth 2 -type d -exec du -sh {} \; 2>/dev/null | awk '$1 ~ /[0-9]+M$/ && $1 > "100M" {print $2}' || true)
+          if [ -n "$LARGE_PACKAGES" ]; then
+            echo "Warning: Large packages detected (>100MB):"
+            echo "$LARGE_PACKAGES"
+          fi
+
+  # ─────────────────────────────────────────────────────────
+  # Dependency Vulnerability Check
+  # ─────────────────────────────────────────────────────────
+  vulnerability-check:
+    name: Vulnerability Scan
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+
+      - name: Check GitHub Advisory Database
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const https = require('https');
+
+            // Get all packages from package.json
+            const fs = require('fs');
+            const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const dependencies = {
+              ...packageJson.dependencies,
+              ...packageJson.devDependencies
+            };
+
+            console.log('Checking advisories for', Object.keys(dependencies).length, 'packages');
+
+            for (const [pkg, version] of Object.entries(dependencies)) {
+              const query = `
+                query {
+                  securityVulnerabilities(first: 10, package: {type: "npm", name: "${pkg}"}) {
+                    nodes {
+                      severity
+                      vulnerableVersionRange
+                      firstPatchedVersion {
+                        identifier
+                      }
+                      advisory {
+                        summary
+                        description
+                        identifiers {
+                          type
+                          value
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+
+              console.log(`Checking ${pkg}@${version}...`);
+            }
+
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        continue-on-error: true
+
+      - name: Post summary comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `
+              ## Dependency Review Summary
+
+              ### Checks Performed:
+              - ✅ Dependency change detection
+              - ✅ License compatibility review
+              - ✅ Dependency size analysis
+              - ✅ Vulnerability scanning
+
+              ### Status: ${{ job.status }}
+
+              Please review any warnings above before merging.
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

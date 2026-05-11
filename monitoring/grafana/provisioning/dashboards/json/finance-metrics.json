@@ -1,0 +1,25 @@
+{
+  "title": "REZ - Finance Metrics",
+  "panels": [
+    {
+      "title": "Total Revenue",
+      "type": "stat",
+      "targets": [{"expr": "sum(rez_revenue_total)"}]
+    },
+    {
+      "title": "GST Collected",
+      "type": "stat",
+      "targets": [{"expr": "sum(rez_gst_collected)"}]
+    },
+    {
+      "title": "Wallet Transactions",
+      "type": "timeseries",
+      "targets": [{"expr": "sum(rate(rez_wallet_transactions[5m]))"}]
+    },
+    {
+      "title": "BNPL Outstanding",
+      "type": "stat",
+      "targets": [{"expr": "sum(rez_bnpl_outstanding)"}]
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "name": "@rez/monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ReZ Unified Services Monorepo - Turborepo-powered workspace",
+  "workspaces": [
+    "packages/*",
+    "rez-ai-types",
+    "rez-api-sdk",
+    "rez-auth",
+    "rez-brand-tokens",
+    "rez-chat-ai",
+    "rez-chat-integration",
+    "rez-chat-rn",
+    "rez-chat-service",
+    "rez-intent-capture-sdk",
+    "rez-loyalty-client",
+    "rez-merchant-sdk",
+    "rez-metrics",
+    "rez-qr-sdk",
+    "rez-service-core",
+    "rez-shared",
+    "rez-socket-client",
+    "rez-ui",
+    "rez-agent-memory",
+    "rez-intent-graph",
+    "ai-platform",
+    "commerce-platform",
+    "marketing-platform",
+    "travel-platform"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "build:shared": "turbo run build --filter=@rez/shared --filter=@rez/shared-types",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean",
+    "format": "turbo run format",
+    "deploy": "turbo run deploy",
+    "health": "bash scripts/health-all.sh",
+    "deploy:all": "bash scripts/deploy-all.sh",
+    "stop:all": "bash scripts/stop-all.sh"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.4",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "packageManager": "npm@10.0.0"
+}

@@ -1,0 +1,555 @@
+# =============================================================================
+# REZ Platform - Kubernetes ConfigMap Manifest
+# =============================================================================
+# Contains configuration for all 15 REZ microservices
+# =============================================================================
+
+---
+# =============================================================================
+# rez-delivery-service ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-delivery-service-config
+  namespace: rez-production
+  labels:
+    app: rez-delivery-service
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  APP_NAME: "rez-delivery-service"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  DATABASE_HOST: "postgres-primary.rez-infra.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "rez_delivery"
+  DATABASE_SSL: "true"
+  DATABASE_POOL_MIN: "5"
+  DATABASE_POOL_MAX: "20"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  REDIS_KEY_PREFIX: "rez:delivery:"
+  RABBITMQ_HOST: "rabbitmq.rez-infra.svc.cluster.local"
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_VHOST: "rez_delivery"
+  RABBITMQ_PREFETCH: "10"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9090"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+  JAEGER_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-analytics-service ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-analytics-service-config
+  namespace: rez-production
+  labels:
+    app: rez-analytics-service
+data:
+  NODE_ENV: "production"
+  PORT: "3001"
+  APP_NAME: "rez-analytics-service"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  DATABASE_HOST: "postgres-primary.rez-infra.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "rez_users"
+  DATABASE_SSL: "true"
+  CLICKHOUSE_HOST: "clickhouse.rez-infra.svc.cluster.local"
+  CLICKHOUSE_PORT: "8123"
+  CLICKHOUSE_DATABASE: "rez_analytics"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "1"
+  REDIS_KEY_PREFIX: "rez:analytics:"
+  KAFKA_BROKERS: "kafka.rez-infra.svc.cluster.local:9092"
+  KAFKA_CLIENT_ID: "rez-analytics-service"
+  KAFKA_GROUP_ID: "rez-analytics-consumer-group"
+  KAFKA_TOPIC_EVENTS: "rez.events"
+  ANALYTICS_BATCH_SIZE: "1000"
+  ANALYTICS_FLUSH_INTERVAL_MS: "5000"
+  ANALYTICS_RETENTION_DAYS: "90"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9091"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-payment-links-service ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-payment-links-service-config
+  namespace: rez-production
+  labels:
+    app: rez-payment-links-service
+data:
+  NODE_ENV: "production"
+  PORT: "3002"
+  APP_NAME: "rez-payment-links-service"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  DATABASE_HOST: "postgres-primary.rez-infra.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "rez_payment_links"
+  DATABASE_SSL: "true"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "2"
+  REDIS_KEY_PREFIX: "rez:payment-links:"
+  PAYMENT_LINK_EXPIRY_HOURS: "72"
+  PAYMENT_LINK_MAX_AMOUNT: "10000"
+  PAYMENT_LINK_MIN_AMOUNT: "1"
+  PAYMENT_LINK_CURRENCY: "USD"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9092"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-journey-service ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-journey-service-config
+  namespace: rez-production
+  labels:
+    app: rez-journey-service
+data:
+  NODE_ENV: "production"
+  PORT: "3003"
+  APP_NAME: "rez-journey-service"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  DATABASE_HOST: "postgres-primary.rez-infra.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "rez_journey"
+  DATABASE_SSL: "true"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "3"
+  REDIS_KEY_PREFIX: "rez:journey:"
+  KAFKA_BROKERS: "kafka.rez-infra.svc.cluster.local:9092"
+  KAFKA_CLIENT_ID: "rez-journey-service"
+  KAFKA_GROUP_ID: "rez-journey-consumer-group"
+  JOURNEY_STEP_TIMEOUT_HOURS: "24"
+  JOURNEY_MAX_STEPS: "50"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9093"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-automation-service ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-automation-service-config
+  namespace: rez-production
+  labels:
+    app: rez-automation-service
+data:
+  NODE_ENV: "production"
+  PORT: "3004"
+  APP_NAME: "rez-automation-service"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  DATABASE_HOST: "postgres-primary.rez-infra.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "rez_automation"
+  DATABASE_SSL: "true"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "4"
+  REDIS_KEY_PREFIX: "rez:automation:"
+  REDIS_BULLMQ_HOST: "redis.rez-infra.svc.cluster.local"
+  BULLMQ_CONCURRENCY: "5"
+  BULLMQ_MAX_RETRY_ATTEMPTS: "3"
+  AUTOMATION_MAX_CONCURRENT_JOBS: "50"
+  AUTOMATION_JOB_TIMEOUT_SECONDS: "300"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9094"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-gdpr-service ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-gdpr-service-config
+  namespace: rez-production
+  labels:
+    app: rez-gdpr-service
+data:
+  NODE_ENV: "production"
+  PORT: "3005"
+  APP_NAME: "rez-gdpr-service"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  DATABASE_HOST: "postgres-primary.rez-infra.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "rez_gdpr"
+  DATABASE_SSL: "true"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "5"
+  REDIS_KEY_PREFIX: "rez:gdpr:"
+  S3_ENDPOINT: "https://s3.amazonaws.com"
+  S3_REGION: "us-east-1"
+  S3_BUCKET: "rez-gdpr-exports"
+  GDPR_DATA_RETENTION_DAYS: "90"
+  GDPR_ANONYMIZATION_ENABLED: "true"
+  GDPR_EXPORT_FORMAT: "json"
+  GDPR_MAX_EXPORT_SIZE_MB: "100"
+  GDPR_REQUEST_TIMEOUT_HOURS: "72"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9095"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-validation-service ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-validation-service-config
+  namespace: rez-production
+  labels:
+    app: rez-validation-service
+data:
+  NODE_ENV: "production"
+  PORT: "3006"
+  APP_NAME: "rez-validation-service"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  DATABASE_HOST: "postgres-primary.rez-infra.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "rez_validation"
+  DATABASE_SSL: "true"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "6"
+  REDIS_KEY_PREFIX: "rez:validation:"
+  VALIDATION_STRICT_MODE: "true"
+  VALIDATION_MAX_FIELD_LENGTH: "1000"
+  VALIDATION_CACHE_TTL_SECONDS: "300"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9096"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-cohort-service ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-cohort-service-config
+  namespace: rez-production
+  labels:
+    app: rez-cohort-service
+data:
+  NODE_ENV: "production"
+  PORT: "3007"
+  APP_NAME: "rez-cohort-service"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  DATABASE_HOST: "postgres-primary.rez-infra.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "rez_cohort"
+  DATABASE_SSL: "true"
+  CLICKHOUSE_HOST: "clickhouse.rez-infra.svc.cluster.local"
+  CLICKHOUSE_PORT: "8123"
+  CLICKHOUSE_DATABASE: "rez_analytics"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "7"
+  REDIS_KEY_PREFIX: "rez:cohort:"
+  KAFKA_BROKERS: "kafka.rez-infra.svc.cluster.local:9092"
+  KAFKA_CLIENT_ID: "rez-cohort-service"
+  COHORT_MIN_SIZE: "10"
+  COHORT_MAX_SIZE: "10000"
+  COHORT_REFRESH_INTERVAL_HOURS: "24"
+  COHORT_RETENTION_PERIODS: "7,14,30,60,90"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9097"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-currency-service ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-currency-service-config
+  namespace: rez-production
+  labels:
+    app: rez-currency-service
+data:
+  NODE_ENV: "production"
+  PORT: "3008"
+  APP_NAME: "rez-currency-service"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  DATABASE_HOST: "postgres-primary.rez-infra.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "rez_currency"
+  DATABASE_SSL: "true"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "8"
+  REDIS_KEY_PREFIX: "rez:currency:"
+  CURRENCY_DEFAULT: "USD"
+  CURRENCY_CACHE_TTL_SECONDS: "3600"
+  CURRENCY_FALLBACK_ENABLED: "true"
+  CURRENCY_PRECISION: "2"
+  CURRENCY_ENABLED_LIST: "USD,EUR,GBP,CAD,AUD,JPY,CHF,CNY,INR,MXN,BRL"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9098"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-invoice-service ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-invoice-service-config
+  namespace: rez-production
+  labels:
+    app: rez-invoice-service
+data:
+  NODE_ENV: "production"
+  PORT: "3009"
+  APP_NAME: "rez-invoice-service"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  DATABASE_HOST: "postgres-primary.rez-infra.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "rez_invoice"
+  DATABASE_SSL: "true"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "9"
+  REDIS_KEY_PREFIX: "rez:invoice:"
+  S3_ENDPOINT: "https://s3.amazonaws.com"
+  S3_REGION: "us-east-1"
+  S3_BUCKET: "rez-invoices"
+  PDF_GENERATION_TIMEOUT: "30000"
+  PDF_CACHE_ENABLED: "true"
+  PDF_CACHE_TTL: "3600"
+  INVOICE_NUMBER_PREFIX: "INV"
+  INVOICE_DUE_DAYS: "30"
+  INVOICE_AUTO_REMINDER_DAYS: "7,14"
+  INVOICE_CURRENCY: "USD"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9099"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-menu-service ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-menu-service-config
+  namespace: rez-production
+  labels:
+    app: rez-menu-service
+data:
+  NODE_ENV: "production"
+  PORT: "3010"
+  APP_NAME: "rez-menu-service"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  DATABASE_HOST: "postgres-primary.rez-infra.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "rez_menu"
+  DATABASE_SSL: "true"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "10"
+  REDIS_KEY_PREFIX: "rez:menu:"
+  S3_ENDPOINT: "https://s3.amazonaws.com"
+  S3_REGION: "us-east-1"
+  S3_BUCKET: "rez-menu-images"
+  S3_CDN_URL: "https://cdn.rez.app"
+  MENU_CACHE_TTL_SECONDS: "300"
+  MENU_IMAGE_MAX_SIZE_MB: "5"
+  MENU_MAX_ITEMS_PER_CATEGORY: "100"
+  MENU_MAX_MODIFIERS_PER_ITEM: "20"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9100"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-refund-service ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-refund-service-config
+  namespace: rez-production
+  labels:
+    app: rez-refund-service
+data:
+  NODE_ENV: "production"
+  PORT: "3011"
+  APP_NAME: "rez-refund-service"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  DATABASE_HOST: "postgres-primary.rez-infra.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "rez_refund"
+  DATABASE_SSL: "true"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "11"
+  REDIS_KEY_PREFIX: "rez:refund:"
+  RABBITMQ_HOST: "rabbitmq.rez-infra.svc.cluster.local"
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_VHOST: "rez_refund"
+  RABBITMQ_QUEUE: "rez.refund.queue"
+  REFUND_AUTO_APPROVE_THRESHOLD: "50"
+  REFUND_MAX_AMOUNT: "10000"
+  REFUND_WINDOW_DAYS: "30"
+  REFUND_REASON_REQUIRED: "true"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9101"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-tracking-service ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-tracking-service-config
+  namespace: rez-production
+  labels:
+    app: rez-tracking-service
+data:
+  NODE_ENV: "production"
+  PORT: "3012"
+  APP_NAME: "rez-tracking-service"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  DATABASE_HOST: "postgres-primary.rez-infra.svc.cluster.local"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "rez_tracking"
+  DATABASE_SSL: "true"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "12"
+  REDIS_KEY_PREFIX: "rez:tracking:"
+  KAFKA_BROKERS: "kafka.rez-infra.svc.cluster.local:9092"
+  KAFKA_CLIENT_ID: "rez-tracking-service"
+  KAFKA_GROUP_ID: "rez-tracking-consumer-group"
+  KAFKA_TOPIC_EVENTS: "rez.tracking.events"
+  TRACKING_UPDATE_INTERVAL_SECONDS: "30"
+  TRACKING_HISTORY_RETENTION_DAYS: "30"
+  TRACKING_MAX_POINTS_PER_TRIP: "1000"
+  TRACKING_ETA_UPDATE_INTERVAL: "60"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9102"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-websocket-hub ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-websocket-hub-config
+  namespace: rez-production
+  labels:
+    app: rez-websocket-hub
+data:
+  NODE_ENV: "production"
+  PORT: "3013"
+  APP_NAME: "rez-websocket-hub"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "13"
+  REDIS_KEY_PREFIX: "rez:websocket:"
+  REDIS_PUBSUB_ENABLED: "true"
+  WEBSOCKET_MAX_CONNECTIONS: "10000"
+  WEBSOCKET_HEARTBEAT_INTERVAL: "30000"
+  WEBSOCKET_HEARTBEAT_TIMEOUT: "60000"
+  WEBSOCKET_MESSAGE_MAX_SIZE: "65536"
+  WEBSOCKET_QUEUE_SIZE: "1000"
+  WEBSOCKET_BACKPRESSURE_THRESHOLD: "100"
+  WEBSOCKET_AUTH_ENABLED: "true"
+  WEBSOCKET_RATE_LIMIT_PER_MINUTE: "100"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9103"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"
+
+---
+# =============================================================================
+# rez-rate-limit ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rez-rate-limit-config
+  namespace: rez-production
+  labels:
+    app: rez-rate-limit
+data:
+  NODE_ENV: "production"
+  PORT: "3014"
+  APP_NAME: "rez-rate-limit"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  REDIS_HOST: "redis.rez-infra.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "14"
+  REDIS_KEY_PREFIX: "rez:ratelimit:"
+  RATE_LIMIT_WINDOW_SECONDS: "60"
+  RATE_LIMIT_MAX_REQUESTS: "100"
+  RATE_LIMIT_BURST_MULTIPLIER: "1.5"
+  RATE_LIMIT_ALGORITHM: "sliding_window"
+  RATE_LIMIT_DISTRIBUTED: "true"
+  RATE_LIMIT_API_DEFAULT: "100"
+  RATE_LIMIT_API_AUTH: "10"
+  RATE_LIMIT_API_PAYMENT: "20"
+  RATE_LIMIT_API_HEAVY: "5"
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9104"
+  METRICS_PATH: "/metrics"
+  PROMETHEUS_ENABLED: "true"

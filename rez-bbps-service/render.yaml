@@ -1,0 +1,53 @@
+services:
+  - type: web
+    name: rez-bbps-service
+    runtime: node
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: node dist/index.js
+    healthCheckPath: /health
+    # BBPS (Bill Payment & Billing Service) - handles bill fetch, payment, and verification
+    memoryMB: 512
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SERVICE_NAME
+        value: rez-bbps-service
+      - key: PORT
+        value: "4110"
+      - key: HEALTH_PORT
+        value: "4111"
+      - key: MONGODB_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      # Internal service token map (JSON) for inter-service authentication
+      - key: INTERNAL_SERVICE_TOKENS_JSON
+        sync: false
+      # HMAC secret for internal service token verification
+      - key: INTERNAL_SERVICE_HMAC_SECRET
+        sync: false
+      # BBPS API credentials - obtained from BBPS aggregator/provider
+      - key: BBPS_API_KEY
+        sync: false
+      - key: BBPS_API_SECRET
+        sync: false
+      - key: BBPS_AGENT_ID
+        sync: false
+      # BBPS provider endpoint (e.g., NPCI, Paytm, PhonePe)
+      - key: BBPS_PROVIDER_URL
+        sync: false
+      # CORS configuration for allowed origins
+      - key: CORS_ORIGIN
+        sync: false
+      # Payment service URL for bill payment processing
+      - key: PAYMENT_SERVICE_URL
+        sync: false
+      # Wallet service URL for wallet-based bill payments
+      - key: WALLET_SERVICE_URL
+        sync: false
+      # Notification service URL for bill payment alerts
+      - key: NOTIFICATION_SERVICE_URL
+        sync: false
+      - key: SENTRY_DSN
+        sync: false

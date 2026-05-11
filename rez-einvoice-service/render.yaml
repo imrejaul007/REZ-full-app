@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: rez-einvoice-service
+    runtime: node
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: node dist/index.js
+    healthCheckPath: /health
+    # GST e-Invoice service - handles e-invoice generation, IRN management, and Einvoice APIs
+    memoryMB: 512
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SERVICE_NAME
+        value: rez-einvoice-service
+      - key: PORT
+        value: "4112"
+      - key: HEALTH_PORT
+        value: "4113"
+      - key: MONGODB_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      # Internal service token map (JSON) for inter-service authentication
+      - key: INTERNAL_SERVICE_TOKENS_JSON
+        sync: false
+      # HMAC secret for internal service token verification
+      - key: INTERNAL_SERVICE_HMAC_SECRET
+        sync: false
+      # GST e-Invoice credentials - obtained from GST portal/GSP
+      - key: EINVOICE_GSP_API_KEY
+        sync: false
+      - key: EINVOICE_GSP_API_SECRET
+        sync: false
+      - key: EINVOICE_GSP_ID
+        sync: false
+      - key: EINVOICE_GSP_URL
+        sync: false
+      # E-Invoice sandbox/production endpoints
+      - key: EINVOICE_API_URL
+        sync: false
+      - key: EINVOICE_SANDBOX_URL
+        sync: false
+      # GSTIN (Goods and Services Tax Identification Number) for the business
+      - key: BUSINESS_GSTIN
+        sync: false
+      - key: BUSINESS_NAME
+        sync: false
+      # CORS configuration for allowed origins
+      - key: CORS_ORIGIN
+        sync: false
+      # Auth service URL for user/merchant validation
+      - key: REZ_AUTH_SERVICE_URL
+        sync: false
+      # Merchant service URL for business details
+      - key: MERCHANT_SERVICE_URL
+        sync: false
+      - key: SENTRY_DSN
+        sync: false

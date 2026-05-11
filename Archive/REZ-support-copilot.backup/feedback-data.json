@@ -1,0 +1,175 @@
+{
+  "sessions": [],
+  "corrections": [
+    {
+      "input": "what restaurants deliver here",
+      "expected": "SEARCH",
+      "detected": "ORDER",
+      "timestamp": "2026-05-03T09:47:43.914Z"
+    },
+    {
+      "input": "cancel my order",
+      "expected": "CANCEL",
+      "detected": "ORDER",
+      "timestamp": "2026-05-03T09:47:43.915Z"
+    },
+    {
+      "input": "don't want anymore",
+      "expected": "CANCEL",
+      "detected": "ORDER",
+      "timestamp": "2026-05-03T09:47:43.915Z"
+    },
+    {
+      "input": "stop the delivery",
+      "expected": "CANCEL",
+      "detected": "ORDER",
+      "timestamp": "2026-05-03T09:47:43.916Z"
+    },
+    {
+      "input": "abort the booking",
+      "expected": "CANCEL",
+      "detected": "BOOK",
+      "timestamp": "2026-05-03T09:47:43.916Z"
+    },
+    {
+      "input": "remove this from order",
+      "expected": "CANCEL",
+      "detected": "ORDER",
+      "timestamp": "2026-05-03T09:47:43.916Z"
+    },
+    {
+      "input": "wrong item delivered",
+      "expected": "COMPLAINT",
+      "detected": "ORDER",
+      "timestamp": "2026-05-03T09:47:43.916Z"
+    },
+    {
+      "input": "missing items in order",
+      "expected": "COMPLAINT",
+      "detected": "ORDER",
+      "timestamp": "2026-05-03T09:47:43.916Z"
+    },
+    {
+      "input": "where is my order",
+      "expected": "DELIVERY",
+      "detected": "ORDER",
+      "timestamp": "2026-05-03T09:47:43.916Z"
+    },
+    {
+      "input": "delivery ETA",
+      "expected": "DELIVERY",
+      "detected": "ORDER",
+      "timestamp": "2026-05-03T09:47:43.917Z"
+    },
+    {
+      "input": "driver location",
+      "expected": "DELIVERY",
+      "detected": "UNKNOWN",
+      "timestamp": "2026-05-03T09:47:43.917Z"
+    },
+    {
+      "input": "rate your service",
+      "expected": "FEEDBACK",
+      "detected": "UNKNOWN",
+      "timestamp": "2026-05-03T09:47:43.917Z"
+    },
+    {
+      "input": "I am vegetarian",
+      "expected": "DIETARY",
+      "detected": "ORDER",
+      "timestamp": "2026-05-03T09:47:43.917Z"
+    },
+    {
+      "input": "vegan options please",
+      "expected": "DIETARY",
+      "detected": "SEARCH",
+      "timestamp": "2026-05-03T09:47:43.917Z"
+    },
+    {
+      "input": "allergic to nuts",
+      "expected": "DIETARY",
+      "detected": "UNKNOWN",
+      "timestamp": "2026-05-03T09:47:43.917Z"
+    },
+    {
+      "input": "closing time",
+      "expected": "OPENING_HOURS",
+      "detected": "UNKNOWN",
+      "timestamp": "2026-05-03T09:47:43.918Z"
+    },
+    {
+      "input": "late night open",
+      "expected": "OPENING_HOURS",
+      "detected": "COMPLAINT",
+      "timestamp": "2026-05-03T09:47:43.918Z"
+    },
+    {
+      "input": "where are you located",
+      "expected": "LOCATION",
+      "detected": "DELIVERY",
+      "timestamp": "2026-05-03T09:47:43.918Z"
+    },
+    {
+      "input": "landmark nearby",
+      "expected": "LOCATION",
+      "detected": "UNKNOWN",
+      "timestamp": "2026-05-03T09:47:43.918Z"
+    },
+    {
+      "input": "talk to someone",
+      "expected": "CONTACT",
+      "detected": "UNKNOWN",
+      "timestamp": "2026-05-03T09:47:43.918Z"
+    },
+    {
+      "input": "buy gift card",
+      "expected": "GIFT",
+      "detected": "ORDER",
+      "timestamp": "2026-05-03T09:47:43.919Z"
+    },
+    {
+      "input": "corporate gift options",
+      "expected": "GIFT",
+      "detected": "SEARCH",
+      "timestamp": "2026-05-03T09:47:43.919Z"
+    },
+    {
+      "input": "change booking time",
+      "expected": "RESCHEDULE",
+      "detected": "BOOK",
+      "timestamp": "2026-05-03T09:47:43.919Z"
+    },
+    {
+      "input": "postpone appointment",
+      "expected": "RESCHEDULE",
+      "detected": "BOOK",
+      "timestamp": "2026-05-03T09:47:43.919Z"
+    },
+    {
+      "input": "different time slot",
+      "expected": "RESCHEDULE",
+      "detected": "BOOK",
+      "timestamp": "2026-05-03T09:47:43.920Z"
+    }
+  ],
+  "metrics": {
+    "total": 75,
+    "correct": 50,
+    "intents": {
+      "ORDER": 5,
+      "BOOK": 5,
+      "SEARCH": 4,
+      "COMPLAINT": 3,
+      "PAYMENT": 5,
+      "DELIVERY": 2,
+      "FEEDBACK": 4,
+      "DIETARY": 2,
+      "OPENING_HOURS": 3,
+      "LOCATION": 3,
+      "CONTACT": 4,
+      "LOYALTY": 5,
+      "GIFT": 3,
+      "RESCHEDULE": 2
+    }
+  }
+}

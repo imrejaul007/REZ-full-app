@@ -1,0 +1,567 @@
+version: '3.8'
+
+networks:
+  loyalty-network:
+    driver: bridge
+  loyalty-backend:
+    driver: bridge
+
+volumes:
+  mongo-data:
+  redis-data:
+  mongo-rs-data1:
+  mongo-rs-data2:
+  mongo-rs-data3:
+  redis-cluster-data:
+
+services:
+  # ============================================================================
+  # INFRASTRUCTURE SERVICES
+  # ============================================================================
+
+  mongodb-primary:
+    image: mongo:7.0
+    container_name: loyalty-mongodb-primary
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "loyalty-rs", "--bind_ip_all", "--port", "27017"]
+    networks:
+      - loyalty-network
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-rs-data1:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: loyalty
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    mem_limit: 512m
+    cpus: 0.5
+
+  mongodb-secondary-1:
+    image: mongo:7.0
+    container_name: loyalty-mongodb-secondary-1
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "loyalty-rs", "--bind_ip_all", "--port", "27017"]
+    networks:
+      - loyalty-network
+    volumes:
+      - mongo-rs-data2:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    mem_limit: 512m
+    cpus: 0.5
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+
+  mongodb-secondary-2:
+    image: mongo:7.0
+    container_name: loyalty-mongodb-secondary-2
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "loyalty-rs", "--bind_ip_all", "--port", "27017"]
+    networks:
+      - loyalty-network
+    volumes:
+      - mongo-rs-data3:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    mem_limit: 512m
+    cpus: 0.5
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+
+  mongodb-init:
+    image: mongo:7.0
+    container_name: loyalty-mongodb-init
+    networks:
+      - loyalty-network
+    volumes:
+      - ./scripts:/scripts
+    entrypoint: ["mongosh", "--host", "mongodb-primary", "--quiet", "/scripts/init-replica-set.js"]
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      mongodb-secondary-1:
+        condition: service_healthy
+      mongodb-secondary-2:
+        condition: service_healthy
+    restart: "no"
+
+  redis-primary:
+    image: redis:7.2-alpine
+    container_name: loyalty-redis-primary
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-cluster-data:/data
+    command: redis-server --appendonly yes --requirepass redis-password --masterauth redis-password
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis-password", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    cpus: 0.25
+
+  redis-replica:
+    image: redis:7.2-alpine
+    container_name: loyalty-redis-replica
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+    volumes:
+      - redis-cluster-data:/data
+    command: redis-server --appendonly yes --replicaof redis-primary 6379 --requirepass redis-password --masterauth redis-password
+    depends_on:
+      redis-primary:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis-password", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    cpus: 0.25
+
+  redis-cluster-1:
+    image: redis:7.2-alpine
+    container_name: loyalty-redis-cluster-1
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+    ports:
+      - "7001:7001"
+      - "17001:17001"
+    volumes:
+      - ./redis-cluster:/redis-cluster
+    command: >
+      redis-server --cluster-enabled yes --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000 --port 7001 --include /redis-cluster/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7001", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    cpus: 0.25
+
+  redis-cluster-2:
+    image: redis:7.2-alpine
+    container_name: loyalty-redis-cluster-2
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+    ports:
+      - "7002:7002"
+      - "17002:17002"
+    volumes:
+      - ./redis-cluster:/redis-cluster
+    command: >
+      redis-server --cluster-enabled yes --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000 --port 7002 --include /redis-cluster/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7002", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    cpus: 0.25
+
+  redis-cluster-3:
+    image: redis:7.2-alpine
+    container_name: loyalty-redis-cluster-3
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+    ports:
+      - "7003:7003"
+      - "17003:17003"
+    volumes:
+      - ./redis-cluster:/redis-cluster
+    command: >
+      redis-server --cluster-enabled yes --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000 --port 7003 --include /redis-cluster/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "7003", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    cpus: 0.25
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: loyalty-rabbitmq
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+      RABBITMQ_DEFAULT_VHOST: loyalty
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    mem_limit: 512m
+    cpus: 0.5
+
+  # ============================================================================
+  # LOYALTY MICROSERVICES
+  # ============================================================================
+
+  profile-aggregator:
+    build:
+      context: ./services/profile-aggregator
+      dockerfile: Dockerfile
+    container_name: loyalty-profile-aggregator
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+      - loyalty-backend
+    ports:
+      - "4025:4025"
+    environment:
+      NODE_ENV: production
+      PORT: 4025
+      MONGODB_URI: mongodb://mongodb-primary:27017/loyalty
+      REDIS_HOST: redis-primary
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis-password
+      RABBITMQ_URI: amqp://admin:admin123@rabbitmq:5672/loyalty
+      SERVICE_NAME: profile-aggregator
+      LOG_LEVEL: info
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis-primary:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4025/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 256m
+    cpus: 0.25
+
+  streak-service:
+    build:
+      context: ./services/streak-service
+      dockerfile: Dockerfile
+    container_name: loyalty-streak-service
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+      - loyalty-backend
+    ports:
+      - "4026:4026"
+    environment:
+      NODE_ENV: production
+      PORT: 4026
+      MONGODB_URI: mongodb://mongodb-primary:27017/loyalty
+      REDIS_HOST: redis-primary
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis-password
+      RABBITMQ_URI: amqp://admin:admin123@rabbitmq:5672/loyalty
+      SERVICE_NAME: streak-service
+      LOG_LEVEL: info
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis-primary:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4026/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 256m
+    cpus: 0.25
+
+  cross-merchant:
+    build:
+      context: ./services/cross-merchant
+      dockerfile: Dockerfile
+    container_name: loyalty-cross-merchant
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+      - loyalty-backend
+    ports:
+      - "4027:4027"
+    environment:
+      NODE_ENV: production
+      PORT: 4027
+      MONGODB_URI: mongodb://mongodb-primary:27017/loyalty
+      REDIS_HOST: redis-primary
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis-password
+      RABBITMQ_URI: amqp://admin:admin123@rabbitmq:5672/loyalty
+      SERVICE_NAME: cross-merchant
+      LOG_LEVEL: info
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis-primary:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4027/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 256m
+    cpus: 0.25
+
+  score-service:
+    build:
+      context: ./services/score-service
+      dockerfile: Dockerfile
+    container_name: loyalty-score-service
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+      - loyalty-backend
+    ports:
+      - "4028:4028"
+    environment:
+      NODE_ENV: production
+      PORT: 4028
+      MONGODB_URI: mongodb://mongodb-primary:27017/loyalty
+      REDIS_HOST: redis-primary
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis-password
+      RABBITMQ_URI: amqp://admin:admin123@rabbitmq:5672/loyalty
+      SERVICE_NAME: score-service
+      LOG_LEVEL: info
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis-primary:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4028/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 256m
+    cpus: 0.25
+
+  karma-bridge:
+    build:
+      context: ./services/karma-bridge
+      dockerfile: Dockerfile
+    container_name: loyalty-karma-bridge
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+      - loyalty-backend
+    ports:
+      - "4029:4029"
+    environment:
+      NODE_ENV: production
+      PORT: 4029
+      MONGODB_URI: mongodb://mongodb-primary:27017/loyalty
+      REDIS_HOST: redis-primary
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis-password
+      RABBITMQ_URI: amqp://admin:admin123@rabbitmq:5672/loyalty
+      SERVICE_NAME: karma-bridge
+      LOG_LEVEL: info
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis-primary:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4029/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 256m
+    cpus: 0.25
+
+  monitoring:
+    build:
+      context: ./services/monitoring
+      dockerfile: Dockerfile
+    container_name: loyalty-monitoring
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+      - loyalty-backend
+    ports:
+      - "4030:4030"
+    environment:
+      NODE_ENV: production
+      PORT: 4030
+      MONGODB_URI: mongodb://mongodb-primary:27017/loyalty
+      REDIS_HOST: redis-primary
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis-password
+      RABBITMQ_URI: amqp://admin:admin123@rabbitmq:5672/loyalty
+      SERVICE_NAME: monitoring
+      LOG_LEVEL: info
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis-primary:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4030/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 256m
+    cpus: 0.25
+
+  event-bus:
+    build:
+      context: ./services/event-bus
+      dockerfile: Dockerfile
+    container_name: loyalty-event-bus
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+      - loyalty-backend
+    ports:
+      - "4031:4031"
+    environment:
+      NODE_ENV: production
+      PORT: 4031
+      MONGODB_URI: mongodb://mongodb-primary:27017/loyalty
+      REDIS_HOST: redis-primary
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis-password
+      RABBITMQ_URI: amqp://admin:admin123@rabbitmq:5672/loyalty
+      SERVICE_NAME: event-bus
+      LOG_LEVEL: info
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis-primary:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4031/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 256m
+    cpus: 0.25
+
+  notifications:
+    build:
+      context: ./services/notifications
+      dockerfile: Dockerfile
+    container_name: loyalty-notifications
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+      - loyalty-backend
+    ports:
+      - "4032:4032"
+    environment:
+      NODE_ENV: production
+      PORT: 4032
+      MONGODB_URI: mongodb://mongodb-primary:27017/loyalty
+      REDIS_HOST: redis-primary
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis-password
+      RABBITMQ_URI: amqp://admin:admin123@rabbitmq:5672/loyalty
+      SERVICE_NAME: notifications
+      LOG_LEVEL: info
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis-primary:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4032/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 256m
+    cpus: 0.25
+
+  admin:
+    build:
+      context: ./services/admin
+      dockerfile: Dockerfile
+    container_name: loyalty-admin
+    restart: unless-stopped
+    networks:
+      - loyalty-network
+      - loyalty-backend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: mongodb://mongodb-primary:27017/loyalty
+      REDIS_HOST: redis-primary
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis-password
+      RABBITMQ_URI: amqp://admin:admin123@rabbitmq:5672/loyalty
+      SERVICE_NAME: admin
+      LOG_LEVEL: info
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis-primary:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 512m
+    cpus: 0.5

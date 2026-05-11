@@ -1,0 +1,199 @@
+{
+  "real_user_conversations": [
+    {
+      "id": "user_001",
+      "text": "biryani order kar do for 2 people",
+      "intent": "ORDER",
+      "language": "hinglish",
+      "entities": {"item": "biryani", "quantity": 2},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_002",
+      "text": "table book karo 4 log ke liye 8 baje",
+      "intent": "BOOK",
+      "language": "hinglish",
+      "entities": {"party_size": 4, "time": "20:00"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_003",
+      "text": "paisa wapas do order ka",
+      "intent": "PAYMENT",
+      "language": "hinglish",
+      "entities": {"action": "refund"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_004",
+      "text": "food kahan hai mera order",
+      "intent": "DELIVERY",
+      "language": "hinglish",
+      "entities": {"action": "track"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_005",
+      "text": "bakwas mat karo order karo",
+      "intent": "ORDER",
+      "language": "hinglish",
+      "entities": {"action": "order"},
+      "feedback": "correct",
+      "note": "Impatient user but clear intent"
+    },
+    {
+      "id": "user_006",
+      "text": "room service room 302",
+      "intent": "BOOK",
+      "language": "en",
+      "entities": {"service": "room_service", "room": "302"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_007",
+      "text": "late hoon checkout kar do",
+      "intent": "RESCHEDULE",
+      "language": "hinglish",
+      "entities": {"action": "late_checkout"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_008",
+      "text": "bache hue hain cancel karo",
+      "intent": "CANCEL",
+      "language": "hinglish",
+      "entities": {"reason": "emergency"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_009",
+      "text": "kya veg khana hai aaj",
+      "intent": "SEARCH",
+      "language": "hinglish",
+      "entities": {"preference": "vegetarian"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_010",
+      "text": "restaurant kahan hai",
+      "intent": "LOCATION",
+      "language": "hinglish",
+      "entities": {},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_011",
+      "text": "manager se baat karvana hai",
+      "intent": "CONTACT",
+      "language": "hinglish",
+      "entities": {"person": "manager"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_012",
+      "text": "points check karna hai mere kitne hain",
+      "intent": "LOYALTY",
+      "language": "hinglish",
+      "entities": {"action": "check_balance"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_013",
+      "text": "birthday pe cake bhejo ghar",
+      "intent": "GIFT",
+      "language": "hinglish",
+      "entities": {"occasion": "birthday", "item": "cake"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_014",
+      "text": "ac nahi chal raha room mein",
+      "intent": "COMPLAINT",
+      "language": "hinglish",
+      "entities": {"issue": "ac_not_working"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_015",
+      "text": "rating do stars 5",
+      "intent": "FEEDBACK",
+      "language": "hinglish",
+      "entities": {"rating": 5},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_016",
+      "text": "restaurant khula hai abhi",
+      "intent": "OPENING_HOURS",
+      "language": "hinglish",
+      "entities": {"status": "open"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_017",
+      "text": "nahi chahiye abhi ke liye cancel karo",
+      "intent": "CANCEL",
+      "language": "hinglish",
+      "entities": {"urgency": "immediate"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_018",
+      "text": "menu bhejo restaurant ka",
+      "intent": "SEARCH",
+      "language": "hinglish",
+      "entities": {"action": "view_menu"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_019",
+      "text": "payment link bhejo",
+      "intent": "PAYMENT",
+      "language": "hinglish",
+      "entities": {"action": "payment_link"},
+      "feedback": "correct"
+    },
+    {
+      "id": "user_020",
+      "text": "delivery boy ko call karo",
+      "intent": "CONTACT",
+      "language": "hinglish",
+      "entities": {"person": "delivery_boy"},
+      "feedback": "correct"
+    }
+  ],
+  "user_patterns": {
+    "short_forms": {
+      "biryani": ["bir', "biryani", "biryaani"],
+      "order": ["ordr", "odar", "odr", "order kar"],
+      "cancel": ["cansl", "cansel", "cancel kar"],
+      "track": ["trak", "trck", "track"],
+      "payment": ["pymnt", "paymnt", "paisa"]
+    },
+    "common_phrases": [
+      "karo",
+      "do",
+      "hai",
+      "nahi",
+      "abhi",
+      "baad mein",
+      "phir",
+      "fir",
+      "kyun",
+      "kya"
+    ]
+  },
+  "slang_intent_mapping": {
+    "ORDER": ["order karo", "kar do", "lelo", "milao"],
+    "CANCEL": ["nahi chahiye", "mat karo", "hatao", "hatado"],
+    "TRACK": ["kahan hai", "kahan hai wo", "kaha hai", "kahan he"],
+    "PAYMENT": ["paisa", "rupees", "paise", "payment"],
+    "CONTACT": ["baat karvao", "bolo", "call karo"]
+  },
+  "metadata": {
+    "total": 20,
+    "accuracy_tracking": true,
+    "auto_update_training": false,
+    "created": "2026-05-02"
+  }
+}

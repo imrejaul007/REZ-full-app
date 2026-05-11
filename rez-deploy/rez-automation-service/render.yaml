@@ -1,0 +1,56 @@
+# =============================================================================
+# REZ Automation Service - Render Deployment Configuration
+# =============================================================================
+
+services:
+  - type: web
+    name: rez-automation-service
+    env: docker
+    region: oregon
+    plan: pro
+
+    dockerfilePath: ./Dockerfile
+    dockerContext: ../
+
+    healthCheckPath: /health
+    healthCheckInterval: 30
+    healthCheckThreshold: 3
+
+    autoScaling:
+      minInstances: 2
+      maxInstances: 6
+      targetCPUPercent: 70
+      targetMemoryPercent: 80
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3004
+      - key: APP_NAME
+        value: rez-automation-service
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+
+    diskMounts:
+      - mountPath: /var/log/rez
+        name: rez-logs
+        sizeGB: 5
+
+preDeployCommand: npm run migrate:production
+deploymentStrategy: rolling
+
+notifications:
+  slack:
+    url: https://hooks.slack.com/services/xxx
+    on: [failed, reactivated]

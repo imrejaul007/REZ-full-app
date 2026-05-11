@@ -1,0 +1,15 @@
+name: PR Checklist
+
+on: pull_request
+
+jobs:
+  checklist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR
+        run: |
+          echo "## PR Checklist"
+          echo "- [ ] Tests added/updated"
+          echo "- [ ] Documentation updated"
+          echo "- [ ] Security scan passed"
+          echo "- [ ] Performance considered"

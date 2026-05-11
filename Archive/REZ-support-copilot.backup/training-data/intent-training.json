@@ -1,0 +1,117 @@
+{
+  "training_data": [
+    {
+      "text": "I want to order biryani",
+      "intent": "ORDER",
+      "entities": {"item": "biryani"},
+      "confidence": 0.95
+    },
+    {
+      "text": "Book a table for 4 at 7pm",
+      "intent": "BOOK",
+      "entities": {"party_size": 4, "time": "19:00"},
+      "confidence": 0.92
+    },
+    {
+      "text": "Find chinese restaurants nearby",
+      "intent": "SEARCH",
+      "entities": {"cuisine": "chinese", "location": "nearby"},
+      "confidence": 0.88
+    },
+    {
+      "text": "My food arrived cold",
+      "intent": "COMPLAINT",
+      "entities": {"issue": "food_cold"},
+      "confidence": 0.85
+    },
+    {
+      "text": "Pay via paytm",
+      "intent": "PAYMENT",
+      "entities": {"method": "paytm"},
+      "confidence": 0.90
+    },
+    {
+      "text": "Where is my order?",
+      "intent": "DELIVERY",
+      "entities": {"order_id": "extracted"},
+      "confidence": 0.93
+    },
+    {
+      "text": "Give me 5 stars review option",
+      "intent": "FEEDBACK",
+      "entities": {"rating": 5},
+      "confidence": 0.88
+    },
+    {
+      "text": "Change my booking to 8pm",
+      "intent": "RESCHEDULE",
+      "entities": {"new_time": "20:00"},
+      "confidence": 0.91
+    },
+    {
+      "text": "Cancel my order",
+      "intent": "CANCEL",
+      "entities": {},
+      "confidence": 0.94
+    },
+    {
+      "text": "I am vegetarian",
+      "intent": "DIETARY",
+      "entities": {"preference": "vegetarian"},
+      "confidence": 0.96
+    },
+    {
+      "text": "What time do you close?",
+      "intent": "OPENING_HOURS",
+      "entities": {},
+      "confidence": 0.95
+    },
+    {
+      "text": "What is your address?",
+      "intent": "LOCATION",
+      "entities": {},
+      "confidence": 0.93
+    },
+    {
+      "text": "Call the restaurant",
+      "intent": "CONTACT",
+      "entities": {},
+      "confidence": 0.90
+    },
+    {
+      "text": "Use my loyalty points",
+      "intent": "LOYALTY",
+      "entities": {"action": "redeem"},
+      "confidence": 0.92
+    },
+    {
+      "text": "Send a gift card",
+      "intent": "GIFT",
+      "entities": {"type": "gift_card"},
+      "confidence": 0.89
+    }
+  ],
+  "patterns": {
+    "ORDER": ["want to order", "i want", "get me", "need", "order", "buy", "purchase"],
+    "BOOK": ["book", "reserve", "reservation", "table for", "booking"],
+    "SEARCH": ["find", "search", "looking for", "show me", "any"],
+    "COMPLAINT": ["issue", "problem", "complaint", "wrong", "bad", "disappointed"],
+    "PAYMENT": ["pay", "payment", "refund", "money", "cost", "price", "bill"],
+    "DELIVERY": ["delivery", "where", "track", "arrive", "eta", "shipping"],
+    "FEEDBACK": ["review", "rating", "feedback", "stars", "experience"],
+    "RESCHEDULE": ["reschedule", "change time", "postpone", "different time"],
+    "CANCEL": ["cancel", "cancelled", "don't want", "stop", "abort"],
+    "DIETARY": ["vegetarian", "vegan", "allergy", "halal", "diet", "food preference"],
+    "OPENING_HOURS": ["open", "closed", "timing", "hours", "when"],
+    "LOCATION": ["address", "where", "location", "direction", "map", "reach"],
+    "CONTACT": ["call", "phone", "email", "whatsapp", "contact"],
+    "LOYALTY": ["points", "rewards", "loyalty", "redeem", "cashback"],
+    "GIFT": ["gift", "voucher", "present", "birthday", "surprise"]
+  },
+  "synonyms": {
+    "ORDER": ["buy", "purchase", "get", "want"],
+    "BOOK": ["reserve", "appointment", "schedule"],
+    "PAYMENT": ["pay", "transaction", "money", "cost"],
+    "DELIVERY": ["shipping", "track", "eta", "arrive"]
+  }
+}

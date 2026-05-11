@@ -1,0 +1,23 @@
+{
+  "id": "session-1775606710062",
+  "startedAt": "2026-04-08T00:05:10.062Z",
+  "cwd": "/private/tmp/adbazaar",
+  "context": {
+    "lastMatchedPatterns": [
+      "mem-project_rezapp-rez-consumer-app--nuqta-master",
+      "mem-reference_services_urls-infrastructure",
+      "mem-reference_services_urls-environment-variables--critica",
+      "mem-project_ads_architecture----",
+      "mem-project_adbazaar----"
+    ]
+  },
+  "metrics": {
+    "edits": 117,
+    "commands": 0,
+    "tasks": 0,
+    "errors": 0
+  },
+  "updatedAt": "2026-04-14T03:05:09.442Z",
+  "endedAt": "2026-04-18T16:23:05.234Z",
+  "duration": 922675173
+}

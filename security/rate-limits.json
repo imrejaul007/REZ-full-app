@@ -1,0 +1,14 @@
+{
+  "global": {
+    "windowMs": 900000,
+    "maxRequests": 100
+  },
+  "auth": {
+    "windowMs": 900000,
+    "maxRequests": 10
+  },
+  "orders": {
+    "windowMs": 900000,
+    "maxRequests": 50
+  }
+}

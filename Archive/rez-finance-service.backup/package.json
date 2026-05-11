@@ -1,0 +1,46 @@
+{
+  "name": "rez-finance-service",
+  "version": "1.0.0",
+  "description": "REZ Finance Service — Embedded credit, loans, BNPL, credit score, bill pay",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "lint": "tsc --noEmit",
+    "test": "node --test test"
+  },
+  "dependencies": {
+    "@rez/shared": "file:../packages/rez-shared",
+    "@sentry/node": "^7.120.4",
+    "@types/cors": "^2.8.0",
+    "@types/express": "^4.17.0",
+    "@types/express-mongo-sanitize": "^1.3.2",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.0.0",
+    "@types/uuid": "^9.0.0",
+    "axios": "^1.6.0",
+    "bullmq": "^5.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.0",
+    "express": "^4.18.0",
+    "express-mongo-sanitize": "^2.2.0",
+    "helmet": "^7.1.0",
+    "ioredis": "^5.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.23.1",
+    "node-cron": "^4.0.0",
+    "typescript": "^5.4.5",
+    "uuid": "^14.0.0",
+    "winston": "^3.11.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node-cron": "^3.0.11",
+    "supertest": "^7.2.2",
+    "vitest": "^4.1.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@rez/e2e-tests",
+  "version": "1.0.0",
+  "description": "E2E test suite for QR to Order to Payment to Coins flow",
+  "main": "money-flow-test.js",
+  "scripts": {
+    "test": "node money-flow-test.js",
+    "test:happy": "node money-flow-test.js --test=happy",
+    "test:idempotency": "node money-flow-test.js --test=idempotency",
+    "test:double": "node money-flow-test.js --test=double",
+    "test:ledger": "node money-flow-test.js --test=ledger",
+    "test:events": "node money-flow-test.js --test=events",
+    "test:staging": "E2E_ENV=staging node money-flow-test.js"
+  },
+  "keywords": [
+    "e2e",
+    "testing",
+    "payment",
+    "money-flow"
+  ],
+  "author": "ReZ Team",
+  "license": "MIT",
+  "dependencies": {
+    "mongodb": "^6.3.0",
+    "redis": "^4.6.12"
+  }
+}

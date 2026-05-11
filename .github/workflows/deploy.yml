@@ -1,0 +1,657 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  NODE_VERSION: '20'
+  REGISTRY: ghcr.io
+  REGISTRY_USERNAME: ${{ github.actor }}
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+  RETRY_MAX_ATTEMPTS: 3
+  STEP_TIMEOUT_MINUTES: 10
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  # Pre-deployment: Quality Gates
+  # ─────────────────────────────────────────────────────────
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      can_deploy: ${{ steps.check.outputs.can_deploy }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Check quality gate results
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "can_deploy=true" >> $GITHUB_OUTPUT
+            echo "reason=Manual deployment via workflow_dispatch" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            if [ "${{ needs.quality-gate.outputs.type_check }}" = "success" ] && \
+               [ "${{ needs.quality-gate.outputs.lint }}" = "success" ] && \
+               [ "${{ needs.quality-gate.outputs.tests }}" = "success" ]; then
+              echo "can_deploy=true" >> $GITHUB_OUTPUT
+              echo "reason=All quality gates passed" >> $GITHUB_OUTPUT
+            else
+              echo "can_deploy=false" >> $GITHUB_OUTPUT
+              echo "reason=Quality gates failed" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "can_deploy=false" >> $GITHUB_OUTPUT
+            echo "reason=Not main branch or manual trigger" >> $GITHUB_OUTPUT
+          fi
+
+  # ─────────────────────────────────────────────────────────
+  # Build: Docker Images
+  # ─────────────────────────────────────────────────────────
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [quality-gate]
+    if: needs.quality-gate.outputs.can_deploy == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: auth-api
+            path: rez-auth-service
+            port: 4002
+          - name: merchant-api
+            path: rez-merchant-service
+            port: 4005
+          - name: rendez-backend
+            path: Rendez/rendez-backend
+            port: 4000
+          - name: hotel-ota-api
+            path: Hotel OTA/apps/api
+            port: 3000
+          - name: rez-intelligence-hub
+            path: rez-intelligence-hub
+            port: 4020
+          - name: rez-intent-graph
+            path: rez-intent-graph
+            port: 3001
+          - name: rez-personalization-engine
+            path: rez-personalization-engine
+            port: 4017
+          - name: rez-targeting-engine
+            path: rez-targeting-engine
+            port: 3013
+          - name: rez-action-engine
+            path: rez-action-engine
+            port: 3014
+          - name: rez-scheduler-service
+            path: rez-scheduler-service
+            port: 3012
+          - name: rez-automation-service
+            path: rez-automation-service
+            port: 3016
+          - name: rez-corporate-service
+            path: rez-corporate-service
+            port: 4030
+          - name: rez-feedback-service
+            path: rez-feedback-service
+            port: 4010
+          - name: nextabizz-web
+            path: nextabizz/apps/web
+            port: 3001
+          - name: hotel-panel
+            path: Hotel OTA/apps/hotel-panel
+            port: 3002
+          - name: rez-now
+            path: rez-now
+            port: 3003
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        timeout-minutes: 3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.REGISTRY_USERNAME }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        timeout-minutes: 3
+        retries: ${{ env.RETRY_MAX_ATTEMPTS }}
+
+      - name: Extract branch name
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${{ github.ref_name }} | sed 's/[^a-zA-Z0-9]/-/g')" >> $GITHUB_ENV
+        timeout-minutes: 2
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.service.name }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+        timeout-minutes: 2
+
+      - name: Build and push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
+        timeout-minutes: 25
+        with:
+          context: ./${{ matrix.service.path }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=production
+            BUILD_SHA=${{ github.sha }}
+
+  # ─────────────────────────────────────────────────────────
+  # Deploy to Staging
+  # ─────────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [build-images]
+    if: github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'staging'
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 5
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+        timeout-minutes: 3
+
+      - name: Configure kubectl for staging
+        timeout-minutes: 5
+        run: |
+          echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > kubeconfig
+          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+
+      - name: Deploy to staging
+        timeout-minutes: 10
+        run: |
+          echo "Deploying to staging cluster..."
+
+          # Set image pull secret
+          kubectl create secret docker-registry ghcr-secret \
+            --docker-server=${{ env.REGISTRY }} \
+            --docker-username=${{ env.REGISTRY_USERNAME }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --namespace=rez-staging \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Deploy each service
+          for service in auth-api merchant-api rendez-backend hotel-ota-api \
+                         rez-intelligence-hub rez-intent-graph rez-personalization-engine \
+                         rez-targeting-engine rez-action-engine rez-scheduler-service \
+                         rez-automation-service rez-corporate-service rez-feedback-service \
+                         nextabizz-web hotel-panel rez-now; do
+            echo "Deploying $service..."
+            kubectl set image deployment/$service $service=${{ env.REGISTRY }}/${{ github.repository }}/$service:${{ github.sha }} \
+              --namespace=rez-staging
+          done
+
+      - name: Wait for rollout
+        run: |
+          echo "Waiting for deployments to complete..."
+          FAILED=0
+          for service in auth-api merchant-api rendez-backend hotel-ota-api \
+                         rez-intelligence-hub rez-intent-graph rez-personalization-engine \
+                         rez-targeting-engine rez-action-engine rez-scheduler-service \
+                         rez-automation-service rez-corporate-service rez-feedback-service \
+                         nextabizz-web hotel-panel rez-now; do
+            echo "Checking $service rollout status..."
+            if ! kubectl rollout status deployment/$service --namespace=rez-staging --timeout=300s; then
+              echo "FAILED: $service rollout timed out or failed"
+              FAILED=1
+            fi
+          done
+          if [ $FAILED -eq 1 ]; then
+            echo "One or more rollouts failed"
+            exit 1
+          fi
+          echo "All rollouts completed successfully"
+
+      - name: Run health checks
+        run: |
+          echo "Running health checks on staging..."
+          # Check critical services
+          for endpoint in "http://auth-api.rez-staging.svc.cluster.local:4002/health" \
+                          "http://merchant-api.rez-staging.svc.cluster.local:4005/health" \
+                          "http://rendez-backend.rez-staging.svc.cluster.local:4000/health"; do
+            echo "Checking $endpoint..."
+            kubectl run --rm curl-check --image=curlimages/curl:latest \
+              --restart=Never -q -- curl -sf $endpoint || echo "Health check failed for $endpoint"
+          done
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          echo "Staging deployment completed at $(date)"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+
+  # ─────────────────────────────────────────────────────────
+  # Deploy to Production
+  # ─────────────────────────────────────────────────────────
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [deploy-staging]
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'production'
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 5
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+        timeout-minutes: 3
+
+      - name: Configure kubectl for production
+        timeout-minutes: 5
+        run: |
+          echo "${{ secrets.PRODUCTION_KUBECONFIG }}" | base64 -d > kubeconfig
+          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+
+      - name: Pre-deployment backup
+        timeout-minutes: 10
+        run: |
+          echo "Creating pre-deployment backup..."
+          # Backup critical data
+          kubectl exec -n rez-production statefulset/mongodb-primary -- \
+            mongodump --archive --gzip > backup-${{ github.sha }}.archive || true
+          echo "Backup completed"
+
+      - name: Deploy to production
+        timeout-minutes: 15
+        run: |
+          echo "Deploying to production cluster..."
+          echo "VERSION: ${{ github.sha }}"
+          echo "DEPLOYER: ${{ github.actor }}"
+
+          # Set image pull secret
+          kubectl create secret docker-registry ghcr-secret \
+            --docker-server=${{ env.REGISTRY }} \
+            --docker-username=${{ env.REGISTRY_USERNAME }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --namespace=rez-production \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Deploy with rolling update (maxSurge: 1, maxUnavailable: 0)
+          for service in auth-api merchant-api rendez-backend hotel-ota-api \
+                         rez-intelligence-hub rez-intent-graph rez-personalization-engine \
+                         rez-targeting-engine rez-action-engine rez-scheduler-service \
+                         rez-automation-service rez-corporate-service rez-feedback-service \
+                         nextabizz-web hotel-panel rez-now; do
+            echo "Deploying $service..."
+            kubectl set image deployment/$service $service=${{ env.REGISTRY }}/${{ github.repository }}/$service:${{ github.sha }} \
+              --namespace=rez-production
+          done
+
+      - name: Wait for rollout with canary verification
+        timeout-minutes: 20
+        run: |
+          echo "Waiting for deployments to complete..."
+          # Track deployment status
+          DEPLOYMENT_FAILED=0
+          for service in auth-api merchant-api rendez-backend hotel-ota-api \
+                         rez-intelligence-hub rez-intent-graph rez-personalization-engine \
+                         rez-targeting-engine rez-action-engine rez-scheduler-service \
+                         rez-automation-service rez-corporate-service rez-feedback-service \
+                         nextabizz-web hotel-panel rez-now; do
+            echo "Waiting for $service rollout..."
+            if ! kubectl rollout status deployment/$service --namespace=rez-production --timeout=600s; then
+              echo "FAILED: $service rollout timed out"
+              DEPLOYMENT_FAILED=1
+            fi
+          done
+
+          if [ $DEPLOYMENT_FAILED -eq 1 ]; then
+            echo "One or more deployments failed. Check kubectl get pods -n rez-production"
+            exit 1
+          fi
+
+      - name: Run smoke tests
+        timeout-minutes: 10
+        run: |
+          echo "Running smoke tests on production..."
+          # Get load balancer endpoint
+          INGRESS_HOST=$(kubectl get svc -n rez-production ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "localhost")
+
+          FAILED=0
+          for path in "/health" "/api/health" "/v1/health"; do
+            echo "Testing $path..."
+            if ! curl -sf "https://$INGRESS_HOST$path"; then
+              echo "FAILED: Smoke test for $path"
+              FAILED=1
+            else
+              echo "PASSED: $path"
+            fi
+          done
+
+          if [ $FAILED -eq 1 ]; then
+            echo "Smoke tests failed - initiating rollback"
+            kubectl rollout undo deployment/auth-api -n rez-production
+            exit 1
+          fi
+          echo "All smoke tests passed"
+
+      - name: Post-deployment verification
+        run: |
+          echo "Post-deployment verification..."
+          kubectl get pods -n rez-production -o wide
+          kubectl top pods -n rez-production || true
+          kubectl get hpa -n rez-production || true
+
+      - name: Create deployment record
+        run: |
+          echo "Recording deployment..."
+          # Create a deployment annotation for tracking
+          kubectl annotate deployment/auth-api -n rez-production \
+            kubernetes.io/change-cause="Deployed by ${{ github.actor }} at $(date)" \
+            --overwrite
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "Production deployment completed successfully!"
+          echo "Version: ${{ github.sha }}"
+          echo "Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Deployed by: ${{ github.actor }}"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "Production deployment FAILED!"
+          echo "Version: ${{ github.sha }}"
+          echo "Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Initiated by: ${{ github.actor }}"
+          echo ""
+          echo "To rollback, use the rollback workflow with version: ${{ github.sha }}"
+          echo "Or run: kubectl rollout undo deployment/<service> -n rez-production"
+
+  # ─────────────────────────────────────────────────────────
+  # Database Migrations (runs after successful deployment)
+  # ─────────────────────────────────────────────────────────
+  run-migrations:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [deploy-production]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.PRODUCTION_KUBECONFIG }}" | base64 -d > kubeconfig
+          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+
+      - name: Run MongoDB migrations
+        run: |
+          echo "Running MongoDB migrations..."
+          for service in auth-api merchant-api rez-intent-graph rez-intelligence-hub; do
+            echo "Running migration for $service..."
+            kubectl exec -n rez-production deployment/$service -- \
+              sh -c "npm run migrate:up || echo 'No migrations for $service'" || true
+          done
+
+      - name: Run PostgreSQL migrations
+        run: |
+          echo "Running PostgreSQL migrations..."
+          for service in rendez-backend hotel-ota-api; do
+            echo "Running migration for $service..."
+            kubectl exec -n rez-production deployment/$service -- \
+              sh -c "npx prisma migrate deploy || echo 'No migrations for $service'" || true
+          done
+
+  # ─────────────────────────────────────────────────────────
+  # Cleanup old images
+  # ─────────────────────────────────────────────────────────
+  cleanup:
+    name: Cleanup Old Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [run-migrations]
+    if: always() && github.ref == 'refs/heads/main'
+    permissions:
+      packages: write
+
+    steps:
+      - name: Delete old packages
+        run: |
+          echo "Cleaning up old container images..."
+          echo "Registry: ${{ env.REGISTRY }}/${{ github.repository }}"
+
+          # List all packages
+          echo "Fetching package versions..."
+
+          # Get all SHA-based tags (these are from PR builds)
+          sha_tags=$(gh api repos/${{ github.repository }}/packages/versions \
+            --jq '.[] | select(.metadata.container.tags[] | startswith("sha-")) | .id' \
+            2>/dev/null || echo "")
+
+          if [ -n "$sha_tags" ]; then
+            # Keep the last 5 SHA-based images, delete the rest
+            tag_count=$(echo "$sha_tags" | wc -l)
+            delete_count=$((tag_count - 5))
+
+            if [ "$delete_count" -gt 0 ]; then
+              echo "Deleting $delete_count old SHA-based images..."
+              echo "$sha_tags" | tail -n +6 | while read version_id; do
+                gh api -X DELETE repos/${{ github.repository }}/packages/versions/$version_id 2>/dev/null && \
+                  echo "Deleted version $version_id" || \
+                  echo "Failed to delete version $version_id"
+              done
+            else
+              echo "No SHA-based images to delete (keeping all 5 latest)"
+            fi
+          else
+            echo "No SHA-based images found"
+          fi
+
+          echo "Image cleanup completed"
+
+      - name: Prune build cache
+        if: runner.os == 'Linux'
+        run: |
+          echo "Pruning Docker build cache..."
+          docker builder prune -f --filter "until=168h" || echo "No Docker cache to prune"
+
+  # ─────────────────────────────────────────────────────────
+  # Slack Notifications
+  # ─────────────────────────────────────────────────────────
+  notify:
+    name: Notify Deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [deploy-production, cleanup]
+    if: always()
+    permissions:
+      deployments: read
+
+    steps:
+      - name: Notify Slack on deployment complete
+        uses: slackapi/slack-github-action@v1
+        if: needs.deploy-production.result == 'success'
+        with:
+          payload: |
+            {
+              "text": "Deployment Succeeded: Production",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "Deployment Successful",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Environment:*\nProduction"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Version:*\n`${{ github.sha }}`"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Deployed by:*\n${{ github.actor }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Time:*\n$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Commit"
+                      },
+                      "url": "https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      - name: Notify Slack on deployment failure
+        uses: slackapi/slack-github-action@v1
+        if: needs.deploy-production.result == 'failure'
+        with:
+          payload: |
+            {
+              "text": "Deployment FAILED: Production",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "Deployment Failed",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Environment:*\nProduction"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Version:*\n`${{ github.sha }}`"
+                    },
+                    {
+                      "type": "mrkdn",
+                      "text": "*Deployed by:*\n${{ github.actor }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Time:*\n$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Action Required:*\nPlease check the deployment workflow logs and initiate rollback if needed."
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow Run"
+                      },
+                      "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    },
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "Run Rollback"
+                      },
+                      "action_id": "rollback"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

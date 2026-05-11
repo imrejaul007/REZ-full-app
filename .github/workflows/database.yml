@@ -1,0 +1,12 @@
+name: Database Validation
+
+on: [push, pull_request]
+
+jobs:
+  indexes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Validate indexes
+        run: |
+          node scripts/validate-indexes.js

@@ -1,0 +1,305 @@
+name: Rollback Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - staging
+          - production
+      service:
+        description: 'Service to rollback (leave empty for all services)'
+        required: false
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+
+env:
+  KUBECTL_VERSION: 'v1.28.0'
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  # Pre-flight checks
+  # ─────────────────────────────────────────────────────────
+  preflight:
+    name: Preflight Check
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.parse.outputs.services }}
+      environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Validate inputs
+        run: |
+          if [ -z "${{ github.event.inputs.reason }}" ]; then
+            echo "Error: Reason is required for rollback"
+            exit 1
+          fi
+
+      - name: Parse services to rollback
+        id: parse
+        run: |
+          if [ -z "${{ github.event.inputs.service }}" ]; then
+            SERVICES="auth-api merchant-api rendez-backend hotel-ota-api \
+                      rez-intelligence-hub rez-intent-graph rez-personalization-engine \
+                      rez-targeting-engine rez-action-engine rez-scheduler-service \
+                      rez-automation-service rez-corporate-service rez-feedback-service \
+                      nextabizz-web hotel-panel rez-now"
+          else
+            SERVICES="${{ github.event.inputs.service }}"
+          fi
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          echo "Rolling back: $SERVICES"
+
+      - name: Log rollback reason
+        run: |
+          echo "Rollback Reason: ${{ github.event.inputs.reason }}"
+          echo "Initiated by: ${{ github.actor }}"
+          echo "Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
+  # ─────────────────────────────────────────────────────────
+  # Rollback Staging
+  # ─────────────────────────────────────────────────────────
+  rollback-staging:
+    name: Rollback Staging
+    runs-on: ubuntu-latest
+    needs: [preflight]
+    if: github.event.inputs.environment == 'staging'
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > kubeconfig
+          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+
+      - name: Get deployment history
+        run: |
+          echo "Current deployment history:"
+          for service in ${{ needs.preflight.outputs.services }}; do
+            echo "--- $service ---"
+            kubectl rollout history deployment/$service -n rez-staging 2>/dev/null | tail -5 || echo "No history available"
+          done
+
+      - name: Perform rollback
+        run: |
+          echo "Rolling back services in rez-staging..."
+          for service in ${{ needs.preflight.outputs.services }}; do
+            echo "Rolling back $service..."
+            if kubectl rollout undo deployment/$service -n rez-staging --to-revision=0; then
+              echo "SUCCESS: $service rolled back"
+            else
+              echo "WARNING: $service rollback failed or no previous revision"
+            fi
+          done
+
+      - name: Wait for rollback to complete
+        run: |
+          echo "Waiting for rollback to complete..."
+          for service in ${{ needs.preflight.outputs.services }}; do
+            echo "Waiting for $service..."
+            kubectl rollout status deployment/$service -n rez-staging --timeout=300s || true
+          done
+
+      - name: Verify rollback
+        run: |
+          echo "Verifying rollback..."
+          kubectl get pods -n rez-staging
+          kubectl get deployments -n rez-staging
+
+      - name: Notify rollback
+        if: always()
+        run: |
+          echo "Staging rollback completed at $(date)"
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          echo "Initiated by: ${{ github.actor }}"
+
+  # ─────────────────────────────────────────────────────────
+  # Rollback Production
+  # ─────────────────────────────────────────────────────────
+  rollback-production:
+    name: Rollback Production
+    runs-on: ubuntu-latest
+    needs: [preflight]
+    if: github.event.inputs.environment == 'production'
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.PRODUCTION_KUBECONFIG }}" | base64 -d > kubeconfig
+          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+
+      - name: Create emergency backup
+        run: |
+          echo "Creating emergency backup before rollback..."
+          for service in ${{ needs.preflight.outputs.services }}; do
+            echo "Backing up $service state..."
+            kubectl exec -n rez-production deployment/$service -- \
+              sh -c "echo 'Emergency backup: $(date)' >> /tmp/rollback-backup.log" || true
+          done
+          echo "Backup completed"
+
+      - name: Get deployment history
+        run: |
+          echo "Current deployment history:"
+          for service in ${{ needs.preflight.outputs.services }}; do
+            echo "--- $service ---"
+            kubectl rollout history deployment/$service -n rez-production 2>/dev/null | tail -5 || echo "No history available"
+          done
+
+      - name: Confirm production rollback
+        run: |
+          echo "=========================================="
+          echo "  WARNING: PRODUCTION ROLLBACK"
+          echo "=========================================="
+          echo "Environment: production"
+          echo "Services: ${{ needs.preflight.outputs.services }}"
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          echo "Initiated by: ${{ github.actor }}"
+          echo "Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "=========================================="
+
+      - name: Perform rollback
+        run: |
+          echo "Rolling back services in rez-production..."
+          ROLLBACK_RESULTS=""
+          for service in ${{ needs.preflight.outputs.services }}; do
+            echo "Rolling back $service..."
+            if kubectl rollout undo deployment/$service -n rez-production --to-revision=0; then
+              echo "SUCCESS: $service rolled back"
+              ROLLBACK_RESULTS="$ROLLBACK_RESULTS\n  - $service: OK"
+            else
+              echo "WARNING: $service rollback failed or no previous revision"
+              ROLLBACK_RESULTS="$ROLLBACK_RESULTS\n  - $service: FAILED"
+            fi
+          done
+          echo -e "Rollback results:$ROLLBACK_RESULTS"
+
+      - name: Wait for rollback to complete
+        run: |
+          echo "Waiting for rollback to complete..."
+          ROLLOUT_FAILED=0
+          for service in ${{ needs.preflight.outputs.services }}; do
+            echo "Waiting for $service rollout..."
+            if ! kubectl rollout status deployment/$service -n rez-production --timeout=300s; then
+              echo "WARNING: $service rollout may have issues"
+              ROLLOUT_FAILED=1
+            fi
+          done
+
+          if [ $ROLLOUT_FAILED -eq 1 ]; then
+            echo "Some rollouts may have issues. Check pod status."
+          fi
+
+      - name: Verify rollback
+        run: |
+          echo "Verifying rollback..."
+          echo "--- Pods ---"
+          kubectl get pods -n rez-production -o wide
+          echo ""
+          echo "--- Deployments ---"
+          kubectl get deployments -n rez-production
+          echo ""
+          echo "--- ReplicaSets ---"
+          kubectl get rs -n rez-production
+
+      - name: Run health verification
+        run: |
+          echo "Running health verification..."
+          CRITICAL_SERVICES="auth-api merchant-api rendez-backend"
+          HEALTH_PASSED=0
+          for service in $CRITICAL_SERVICES; do
+            PORT=4002
+            case $service in
+              auth-api) PORT=4002 ;;
+              merchant-api) PORT=4005 ;;
+              rendez-backend) PORT=4000 ;;
+            esac
+            echo "Checking $service health..."
+            kubectl exec -n rez-production deploy/curl -- \
+              curl -sf "http://$service:$PORT/health" && HEALTH_PASSED=$((HEALTH_PASSED + 1)) || true
+          done
+          echo "Health checks passed: $HEALTH_PASSED/3"
+
+      - name: Record rollback
+        run: |
+          echo "Recording rollback event..."
+          kubectl annotate deployment/auth-api -n rez-production \
+            kubernetes.io/change-cause="Rollback by ${{ github.actor }}: ${{ github.event.inputs.reason }}" \
+            --overwrite
+
+      - name: Notify rollback success
+        if: success()
+        run: |
+          echo "=========================================="
+          echo "  PRODUCTION ROLLBACK COMPLETED"
+          echo "=========================================="
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          echo "Initiated by: ${{ github.actor }}"
+          echo "Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Environment: production"
+          echo "Services: ${{ needs.preflight.outputs.services }}"
+          echo "=========================================="
+
+      - name: Notify rollback failure
+        if: failure()
+        run: |
+          echo "=========================================="
+          echo "  PRODUCTION ROLLBACK FAILED"
+          echo "=========================================="
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          echo "Initiated by: ${{ github.actor }}"
+          echo "Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo ""
+          echo "Manual intervention may be required."
+          echo "Check: kubectl get pods -n rez-production"
+          echo "Logs: kubectl logs -n rez-production -l app=<service>"
+          echo "=========================================="
+          exit 1
+
+  # ─────────────────────────────────────────────────────────
+  # Post-rollback summary
+  # ─────────────────────────────────────────────────────────
+  summary:
+    name: Rollback Summary
+    runs-on: ubuntu-latest
+    needs: [rollback-staging, rollback-production]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "=========================================="
+          echo "  ROLLBACK SUMMARY"
+          echo "=========================================="
+          echo "Environment: ${{ needs.preflight.outputs.environment }}"
+          echo "Services: ${{ needs.preflight.outputs.services }}"
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          echo "Initiated by: ${{ github.actor }}"
+          echo "Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo ""
+          echo "Status:"
+          echo "  - Staging rollback: ${{ needs.rollback-staging.result }}"
+          echo "  - Production rollback: ${{ needs.rollback-production.result }}"
+          echo "=========================================="

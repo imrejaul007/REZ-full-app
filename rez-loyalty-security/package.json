@@ -1,0 +1,73 @@
+{
+  "name": "@rez-loyalty/security",
+  "version": "1.0.0",
+  "description": "Security utilities for REZ Loyalty System",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./rateLimits": {
+      "types": "./dist/rateLimits.d.ts",
+      "import": "./dist/rateLimits.js",
+      "require": "./dist/rateLimits.js"
+    },
+    "./inputValidation": {
+      "types": "./dist/inputValidation.d.ts",
+      "import": "./dist/inputValidation.js",
+      "require": "./dist/inputValidation.js"
+    },
+    "./authMiddleware": {
+      "types": "./dist/authMiddleware.d.ts",
+      "import": "./dist/authMiddleware.js",
+      "require": "./dist/authMiddleware.js"
+    },
+    "./auditLogger": {
+      "types": "./dist/auditLogger.d.ts",
+      "import": "./dist/auditLogger.js",
+      "require": "./dist/auditLogger.js"
+    },
+    "./corsConfig": {
+      "types": "./dist/corsConfig.d.ts",
+      "import": "./dist/corsConfig.js",
+      "require": "./dist/corsConfig.js"
+    },
+    "./helmet": {
+      "types": "./dist/helmet.d.ts",
+      "import": "./dist/helmet.js",
+      "require": "./dist/helmet.js"
+    },
+    "./constants": {
+      "types": "./dist/constants.d.ts",
+      "import": "./dist/constants.js",
+      "require": "./dist/constants.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build",
+    "lint": "eslint security --ext .ts",
+    "test": "jest"
+  },
+  "keywords": [
+    "security",
+    "loyalty",
+    "rate-limiting",
+    "validation",
+    "auth"
+  ],
+  "author": "REZ Team",
+  "license": "MIT",
+  "peerDependencies": {
+    "zod": ">=3.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}

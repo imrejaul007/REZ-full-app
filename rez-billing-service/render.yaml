@@ -1,0 +1,43 @@
+# render.yaml for REZ Billing Service
+# Deploy to Render: https://render.com/docs/yaml-spec
+
+services:
+  - type: web
+    name: rez-billing-service
+    runtime: node
+    region: oregon
+    plan: standard
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: LOG_LEVEL
+        value: info
+      - key: CORS_ORIGIN
+        sync: false
+
+# Add-ons
+addons:
+  - name: rez-billing-mongo
+    plan: hobby
+    type: mongodbatlas
+
+  - name: rez-billing-redis
+    plan: hobby
+    type: redis
+
+# Health Check
+healthCheck:
+  enabled: true
+  path: /health
+  interval: 30s
+  timeout: 10s
+  threshold: 3

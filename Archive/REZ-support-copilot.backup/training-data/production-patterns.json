@@ -1,0 +1,507 @@
+{
+  "production_patterns": {
+    "ORDER": {
+      "high_priority_patterns": [
+        "order",
+        "i want",
+        "i'll have",
+        "let's get",
+        "get me",
+        "can i order",
+        "place order",
+        "i need food",
+        "food order",
+        "deliver",
+        "order for delivery",
+        "takeaway",
+        "pickup order",
+        "order biryani",
+        "order food online",
+        "online order",
+        "food delivery order",
+        "order karo",
+        "lelo food",
+        "milao kuch"
+      ],
+      "context_patterns": {
+        "restaurant": ["menu se", "restaurant se", "hotel se"],
+        "grocery": ["grocery", "kirana", "sabzi", "vegetables", "fruits"],
+        "pharmacy": ["medicine", "dawa", "tablet", "capsule", "syrup"],
+        "retail": ["shop se", "store se", "buy", "purchase"]
+      }
+    },
+    "CANCEL": {
+      "high_priority_patterns": [
+        "cancel",
+        "don't want",
+        "stop order",
+        "abandon",
+        "remove from order",
+        "undo",
+        "delete order",
+        "call off",
+        "not needed anymore",
+        "changed my mind",
+        "not required",
+        "skip it",
+        "hata do",
+        "cancel kar do",
+        "nahi chahiye",
+        "band karo",
+        "mat banao",
+        "undo the order",
+        "revoke",
+        "disregard"
+      ],
+      "urgent_patterns": [
+        "emergency cancel",
+        "immediately cancel",
+        "right now",
+        "asap cancel",
+        "urgent cancellation",
+        "immediately stop"
+      ]
+    },
+    "BOOK": {
+      "high_priority_patterns": [
+        "book",
+        "reserve",
+        "reservation",
+        "i'd like to reserve",
+        "make a booking",
+        "book a table",
+        "book appointment",
+        "schedule",
+        "slot booking",
+        "appointment for",
+        "booking for",
+        "reserve for",
+        "table reservation",
+        "book karo",
+        "reserve karo",
+        "booking karo",
+        "slot book karo"
+      ],
+      "service_patterns": {
+        "salon": ["appointment", "treatment slot", "service book"],
+        "gym": ["membership join", "join gym", "gym admission"],
+        "hotel": ["room booking", "hotel reservation", "stay booking"],
+        "events": ["ticket book", "passes book", "entry book"]
+      }
+    },
+    "SEARCH": {
+      "high_priority_patterns": [
+        "find",
+        "search for",
+        "show me",
+        "looking for",
+        "any",
+        "what do you have",
+        "available options",
+        "list",
+        "browse",
+        "explore",
+        "see options",
+        "display",
+        "find karo",
+        "dhundho",
+        "dikhao",
+        "kya hai"
+      ],
+      "filter_patterns": [
+        "near me",
+        "nearby",
+        "around here",
+        "close by",
+        "within",
+        "under",
+        "below",
+        "under rs",
+        "under 500",
+        "cheap",
+        "budget",
+        "premium",
+        "top rated",
+        "best rated"
+      ]
+    },
+    "PAYMENT": {
+      "high_priority_patterns": [
+        "pay",
+        "payment",
+        "refund",
+        "money back",
+        "charged",
+        "transaction",
+        "upi",
+        "gpay",
+        "phonepe",
+        "paytm",
+        "card payment",
+        "netbanking",
+        "bill amount",
+        "invoice",
+        "paisa",
+        "rupees",
+        "price",
+        "cost",
+        "amount",
+        "pay karna",
+        "payment karo"
+      ],
+      "issue_patterns": [
+        "payment failed",
+        "transaction failed",
+        "money deducted",
+        "charged twice",
+        "not received",
+        "payment not processed",
+        "refund not credited",
+        "payment pending"
+      ]
+    },
+    "DELIVERY": {
+      "high_priority_patterns": [
+        "where is",
+        "where's",
+        "track",
+        "tracking",
+        "ETA",
+        "when will",
+        "how long",
+        "delivery time",
+        "arriving",
+        "reach",
+        "delivered",
+        "dispatched",
+        "out for delivery",
+        "driver location",
+        "delivery partner",
+        "order status",
+        "kahan hai",
+        "kaha hai",
+        "kitna time",
+        "kab aayega"
+      ],
+      "urgent_patterns": [
+        "very late",
+        "already 1 hour",
+        "2 hours passed",
+        "urgent delivery",
+        "food getting cold",
+        "starving",
+        "immediately needed"
+      ]
+    },
+    "COMPLAINT": {
+      "high_priority_patterns": [
+        "complaint",
+        "issue",
+        "problem",
+        "wrong",
+        "bad",
+        "terrible",
+        "worst",
+        "disappointed",
+        "not happy",
+        "frustrated",
+        "angry",
+        "poor quality",
+        "waste of money",
+        "never ordering again",
+        "reporting",
+        "shikayat",
+        "problem hai",
+        "galti hai"
+      ],
+      "food_quality": [
+        "cold food",
+        "food not fresh",
+        "stale",
+        "tasteless",
+        "too oily",
+        "overcooked",
+        "undercooked",
+        "burnt",
+        "spoiled"
+      ],
+      "service_issues": [
+        "rude staff",
+        "late delivery",
+        "wrong order",
+        "missing items",
+        "packaging damaged",
+        "dirty container"
+      ]
+    },
+    "FEEDBACK": {
+      "high_priority_patterns": [
+        "rating",
+        "review",
+        "stars",
+        "feedback",
+        "experience",
+        "how was",
+        "rate us",
+        "tell us",
+        "suggestions",
+        "improve",
+        "opinion",
+        "write review",
+        "share experience",
+        "feedback do",
+        "rating do"
+      ],
+      "positive_patterns": [
+        "loved it",
+        "amazing",
+        "excellent",
+        "fantastic",
+        "best ever",
+        "5 stars",
+        "will order again",
+        "recommended"
+      ],
+      "negative_patterns": [
+        "not good",
+        "average",
+        "okayish",
+        "could be better",
+        "needs improvement",
+        "okay",
+        "not bad"
+      ]
+    },
+    "DIETARY": {
+      "high_priority_patterns": [
+        "vegetarian",
+        "vegan",
+        "non-veg",
+        "jain",
+        "halal",
+        "kosher",
+        "gluten-free",
+        "lactose intolerant",
+        "nut allergy",
+        "allergic",
+        "diet preference",
+        "food choice",
+        "pure veg",
+        "shakahari",
+        "nashtik"
+      ],
+      "religious_patterns": [
+        "no onion",
+        "no garlic",
+        "sattvic",
+        "satvik",
+        "fasting food",
+        "vrat ka khana",
+        "upvas",
+        "navratri special"
+      ]
+    },
+    "OPENING_HOURS": {
+      "high_priority_patterns": [
+        "open",
+        "closed",
+        "timing",
+        "hours",
+        "when",
+        "till",
+        "from",
+        "until",
+        "starts",
+        "ends",
+        "open time",
+        "closing time",
+        "service hours",
+        "khula",
+        "band",
+        "timing kya hai",
+        "kitne baje"
+      ],
+      "day_patterns": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+        "today",
+        "tomorrow",
+        "weekday",
+        "weekend",
+        "holiday"
+      ]
+    },
+    "LOCATION": {
+      "high_priority_patterns": [
+        "address",
+        "where",
+        "located",
+        "location",
+        "direction",
+        "map",
+        "google maps",
+        "navigate",
+        "reach",
+        "parking",
+        "landmark",
+        "area",
+        "neighbourhood",
+        "kahan hai",
+        "address do",
+        "location batao"
+      ],
+      "delivery_patterns": [
+        "deliver to",
+        "delivery area",
+        "serviceable",
+        "do you deliver",
+        "delivery available",
+        "coverage area"
+      ]
+    },
+    "CONTACT": {
+      "high_priority_patterns": [
+        "call",
+        "phone",
+        "email",
+        "whatsapp",
+        "contact",
+        "reach",
+        "talk",
+        "speak",
+        "manager",
+        "owner",
+        "customer care",
+        "support",
+        "helpdesk",
+        "bolo",
+        "baat karo",
+        "call karo"
+      ],
+      "method_patterns": [
+        "send email",
+        "drop mail",
+        "message on whatsapp",
+        "call on",
+        "phone number",
+        "contact number",
+        "mobile"
+      ]
+    },
+    "LOYALTY": {
+      "high_priority_patterns": [
+        "points",
+        "rewards",
+        "loyalty",
+        "cashback",
+        "redeem",
+        "discount",
+        "coupon",
+        "offer",
+        "promo",
+        "deal",
+        "loyalty program",
+        "membership benefits",
+        "points balance",
+        "reward balance"
+      ],
+      "hindi_patterns": [
+        "points check karo",
+        "rewards check",
+        "loyalty balance",
+        "cashback kitna",
+        "offer dikhao"
+      ]
+    },
+    "GIFT": {
+      "high_priority_patterns": [
+        "gift",
+        "voucher",
+        "present",
+        "surprise",
+        "birthday",
+        "anniversary",
+        "celebration",
+        "occasion",
+        "special day",
+        "gifting",
+        "gift option",
+        "shagun"
+      ],
+      "occasion_patterns": [
+        "birthday party",
+        "anniversary celebration",
+        "graduation",
+        "new year",
+        "diwali",
+        "christmas",
+        "eid",
+        "marriage",
+        "baby shower"
+      ]
+    },
+    "RESCHEDULE": {
+      "high_priority_patterns": [
+        "reschedule",
+        "change",
+        "postpone",
+        "delay",
+        "move",
+        "shift",
+        "different time",
+        "another slot",
+        "update booking",
+        "modify",
+        "adjust time",
+        "reschedule karo",
+        "badal do",
+        "time change"
+      ],
+      "urgent_patterns": [
+        "asap reschedule",
+        "emergency change",
+        "immediately update",
+        "urgent reschedule"
+      ]
+    }
+  },
+  "slang_and_informal": {
+    "order": ["odr", "odar", "orderr", "ordr", "orda"],
+    "cancel": ["cansl", "cansel", "cansle", "cansil"],
+    "track": ["trak", "trck", "traking"],
+    "biryani": ["birayni", "birYani", "biryaani", "biryani"],
+    "payment": ["pymnt", "paymnt", "pymt"],
+    "book": ["bok", "bokking", "bukk"],
+    "where": ["kahan", "kaha", "kahaan", "kahani"]
+  },
+  "negation_handling": {
+    "not_order": ["don't want", "not order", "cancel", "stop"],
+    "not_book": ["don't book", "cancel booking", "not reserve"],
+    "not_pay": ["don't charge", "no payment", "wait", "later"],
+    "not_cancel": ["keep it", "yes do it", "proceed", "continue"]
+  },
+  "entity_extraction": {
+    "time_patterns": [
+      {"regex": "\\d{1,2}\\s*(am|pm)", "type": "time"},
+      {"regex": "\\d{1,2}:\\d{2}", "type": "time"},
+      {"regex": "(morning|afternoon|evening|night)", "type": "time_of_day"},
+      {"regex": "(today|tomorrow|yesterday|monday|tuesday|wednesday|thursday|friday|saturday|sunday)", "type": "date"}
+    ],
+    "number_patterns": [
+      {"regex": "\\d+\\s*(people|persons|guests)", "type": "party_size"},
+      {"regex": "\\d+\\s*(rupees|rs|inr)", "type": "price"},
+      {"regex": "\\d+\\s*(hours|hrs|minutes|mins)", "type": "duration"}
+    ]
+  },
+  "metadata": {
+    "total_patterns": 800,
+    "languages": ["en", "hinglish", "hindi"],
+    "version": "2.0",
+    "last_updated": "2026-05-02"
+  }
+}

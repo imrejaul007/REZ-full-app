@@ -1,0 +1,248 @@
+# ============================================================
+# CORE SERVICES TO ADD TO docker-compose.yml
+# ============================================================
+# Copy these definitions into docker-compose.yml after merchant-api
+# ============================================================
+
+  # === CORE BACKEND SERVICES (MISSING) ===
+
+  rez-payment-service:
+    build:
+      context: ./rez-payment-service
+      dockerfile: Dockerfile
+    container_name: rez-payment-service
+    restart: unless-stopped
+    ports:
+      - '4001:4001'
+    environment:
+      NODE_ENV: development
+      PORT: 4001
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_payment_dev
+      REDIS_URL: redis://redis:6379
+      NODE_OPTIONS: --max-old-space-size=512
+      JWT_SECRET: ${JWT_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+      AUTH_SERVICE_URL: http://auth-api:4002
+      WALLET_SERVICE_URL: http://rez-wallet-service:4004
+      LOG_LEVEL: debug
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth-api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:4001/health || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  rez-wallet-service:
+    build:
+      context: ./rez-wallet-service
+      dockerfile: Dockerfile
+    container_name: rez-wallet-service
+    restart: unless-stopped
+    ports:
+      - '4004:4004'
+    environment:
+      NODE_ENV: development
+      PORT: 4004
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_wallet_dev
+      REDIS_URL: redis://redis:6379
+      NODE_OPTIONS: --max-old-space-size=512
+      JWT_SECRET: ${JWT_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+      AUTH_SERVICE_URL: http://auth-api:4002
+      PAYMENT_SERVICE_URL: http://rez-payment-service:4001
+      LOG_LEVEL: debug
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth-api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:4004/health || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  rez-order-service:
+    build:
+      context: ./rez-order-service
+      dockerfile: Dockerfile
+    container_name: rez-order-service
+    restart: unless-stopped
+    ports:
+      - '3006:3006'
+    environment:
+      NODE_ENV: development
+      PORT: 3006
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_order_dev
+      REDIS_URL: redis://redis:6379
+      NODE_OPTIONS: --max-old-space-size=512
+      JWT_SECRET: ${JWT_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+      AUTH_SERVICE_URL: http://auth-api:4002
+      MERCHANT_SERVICE_URL: http://merchant-api:4005
+      PAYMENT_SERVICE_URL: http://rez-payment-service:4001
+      WALLET_SERVICE_URL: http://rez-wallet-service:4004
+      CATALOG_SERVICE_URL: http://rez-catalog-service:3005
+      LOG_LEVEL: debug
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth-api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:3006/health || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  rez-catalog-service:
+    build:
+      context: ./rez-catalog-service
+      dockerfile: Dockerfile
+    container_name: rez-catalog-service
+    restart: unless-stopped
+    ports:
+      - '3005:3005'
+    environment:
+      NODE_ENV: development
+      PORT: 3005
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_catalog_dev
+      REDIS_URL: redis://redis:6379
+      NODE_OPTIONS: --max-old-space-size=512
+      JWT_SECRET: ${JWT_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+      AUTH_SERVICE_URL: http://auth-api:4002
+      MERCHANT_SERVICE_URL: http://merchant-api:4005
+      LOG_LEVEL: debug
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth-api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:3005/health || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  rez-api-gateway:
+    build:
+      context: ./rez-api-gateway
+      dockerfile: Dockerfile
+    container_name: rez-api-gateway
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      REDIS_URL: redis://redis:6379
+      NODE_OPTIONS: --max-old-space-size=512
+      JWT_SECRET: ${JWT_SECRET:-}
+      AUTH_SERVICE_URL: http://auth-api:4002
+      MERCHANT_SERVICE_URL: http://merchant-api:4005
+      PAYMENT_SERVICE_URL: http://rez-payment-service:4001
+      ORDER_SERVICE_URL: http://rez-order-service:3006
+      WALLET_SERVICE_URL: http://rez-wallet-service:4004
+      CATALOG_SERVICE_URL: http://rez-catalog-service:3005
+      LOG_LEVEL: debug
+    depends_on:
+      redis:
+        condition: service_healthy
+      auth-api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:3001/health || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  rez-search-service:
+    build:
+      context: ./rez-search-service
+      dockerfile: Dockerfile
+    container_name: rez-search-service
+    restart: unless-stopped
+    ports:
+      - '4003:4003'
+    environment:
+      NODE_ENV: development
+      PORT: 4003
+      MONGODB_URI: mongodb://mongodb-primary:27017/rez_search_dev
+      REDIS_URL: redis://redis:6379
+      NODE_OPTIONS: --max-old-space-size=512
+      JWT_SECRET: ${JWT_SECRET:-}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+      AUTH_SERVICE_URL: http://auth-api:4002
+      CATALOG_SERVICE_URL: http://rez-catalog-service:3005
+      LOG_LEVEL: debug
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth-api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:4003/health || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M

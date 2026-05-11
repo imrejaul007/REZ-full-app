@@ -1,0 +1,3 @@
+# Treat all docs as text, normalize line endings
+* text=auto eol=lf
+*.md text eol=lf

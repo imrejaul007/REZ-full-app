@@ -1,0 +1,14 @@
+{
+  "id": "session-1776446630168",
+  "startedAt": "2026-04-17T17:23:50.168Z",
+  "cwd": "/Users/rejaulkarim/Documents/ReZ Full App/adBazaar",
+  "context": {},
+  "metrics": {
+    "edits": 14,
+    "commands": 0,
+    "tasks": 0,
+    "errors": 0
+  },
+  "endedAt": "2026-04-17T20:03:52.996Z",
+  "duration": 9602830
+}

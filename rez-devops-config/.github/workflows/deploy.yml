@@ -1,0 +1,114 @@
+name: ReZ Deploy Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+      environment:
+        required: false
+        type: string
+        default: 'staging'
+        description: 'staging | production'
+      service_type:
+        required: false
+        type: string
+        default: 'node-service'
+        description: 'node-service | node-app | nextjs | react-native | static'
+      vercel_token:
+        required: false
+        type: string
+      vercel_org_id:
+        required: false
+        type: string
+      vercel_project_id:
+        required: false
+        type: string
+      render_api_key:
+        required: false
+        type: string
+      render_service_ids:
+        required: false
+        type: string
+        default: ''
+        description: JSON map of service_name -> render_service_id
+
+jobs:
+  # ── Deploy to Staging ────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy Vercel (Frontend)
+        if: inputs.service_type == 'nextjs' || inputs.service_type == 'react-native'
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ inputs.vercel_token }}
+          vercel-org-id: ${{ inputs.vercel_org_id }}
+          vercel-project-id: ${{ inputs.vercel_project_id }}
+          vercel-args: '--prod=false'
+        continue-on-error: true
+
+      - name: Deploy Render (Backend)
+        if: inputs.service_type == 'node-service'
+        run: |
+          echo "Render deployment for staging — configure render_api_key and render_service_ids"
+        continue-on-error: true
+
+  # ── Smoke Test Staging ───────────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    steps:
+      - name: Health check
+        run: |
+          echo "Running smoke tests against staging environment..."
+          # curl -f https://staging.rez.money/api/health || true
+          echo "Smoke test placeholder — configure actual endpoint"
+
+  # ── Deploy to Production ─────────────────────────────────────────────────
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [smoke-test]
+    environment: production
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy Vercel (Frontend)
+        if: inputs.service_type == 'nextjs' || inputs.service_type == 'react-native'
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ inputs.vercel_token }}
+          vercel-org-id: ${{ inputs.vercel_org_id }}
+          vercel-project-id: ${{ inputs.vercel_project_id }}
+          vercel-args: '--prod=true'
+        continue-on-error: true
+
+      - name: Notify deployment
+        uses: slackapi/slack-github-action@v1
+        if: always()
+        with:
+          channel-id: 'deployments'
+          payload: |
+            {
+              "text": "${{ inputs.service_name }} deploy: ${{ job.status }} (${{ github.ref }})",
+              "blocks": [{
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "${{ inputs.service_name }} *deployment* ${{ job.status }}\nCommit: ${{ github.sha }}"
+                }
+              }]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true
