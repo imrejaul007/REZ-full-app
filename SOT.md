@@ -9,10 +9,12 @@
 
 | Repository | Purpose | Remote |
 |------------|---------|--------|
-| `REZ-Merchant` | Merchant OS, admin dashboards, integrations | `imrejaul007/REZ-Merchant` |
-| `rez-merchant-service` | Core merchant API service | `imrejaul007/rez-merchant-service` |
+| `REZ-Media` | Advertising, loyalty, marketing automation | `imrejaul007/REZ-Media` |
 | `REZ-Intelligence` | AI/ML services, event bus, identity | `imrejaul007/REZ-Intelligence` |
 | `RABTUL-Technologies` | Core platform services (auth, wallet, payment) | `imrejaul007/RABTUL-Technologies` |
+| `REZ-Consumer` | Mobile apps (Hotel OTA, Rendez, Food Delivery) | `imrejaul007/REZ-Consumer` |
+| `REZ-Merchant` | Merchant OS, admin dashboards, integrations | `imrejaul007/REZ-Merchant` |
+| `rez-merchant-service` | Core merchant API service | `imrejaul007/rez-merchant-service` |
 
 ---
 
@@ -28,6 +30,18 @@ MERCHANT_SERVICE=https://rez-merchant-service.onrender.com
 INTENT_SERVICE=https://rez-intent-graph.onrender.com
 EVENT_BUS=https://rez-event-bus.onrender.com
 IDENTITY_BRIDGE=https://rez-identity-bridge.onrender.com
+
+# REZ-Media
+ADS_SERVICE=https://rez-ads-service.onrender.com
+DECISION_SERVICE=https://rez-decision-service.onrender.com
+GAMIFICATION_SERVICE=https://rez-gamification-service.onrender.com
+AUTOMATION_SERVICE=https://rez-automation-service.onrender.com
+MEDIA_EVENTS=https://rez-media-events.onrender.com
+
+# REZ-Intelligence
+EVENT_PLATFORM=https://rez-event-platform.onrender.com
+INTELLIGENCE_HUB=https://rez-intelligence-hub.onrender.com
+INSIGHTS_SERVICE=https://rez-insights-service.onrender.com
 ```
 
 ### Development (Local)
@@ -40,6 +54,13 @@ MERCHANT_SERVICE=http://localhost:4005
 INTENT_SERVICE=http://localhost:4050
 EVENT_BUS=http://localhost:4051
 IDENTITY_BRIDGE=http://localhost:4092
+
+# REZ-Media
+ADS_SERVICE=http://localhost:4007
+DECISION_SERVICE=http://localhost:4027
+GAMIFICATION_SERVICE=http://localhost:3004
+AUTOMATION_SERVICE=http://localhost:4020
+MEDIA_EVENTS=http://localhost:3008
 ```
 
 ---
@@ -60,7 +81,12 @@ All services use **scoped tokens** via `INTERNAL_SERVICE_TOKENS_JSON`:
   "intent-service": "<hex-token>",
   "event-bus": "<hex-token>",
   "identity-bridge": "<hex-token>",
-  "api-gateway": "<hex-token>"
+  "api-gateway": "<hex-token>",
+  "ads-service": "<hex-token>",
+  "decision-service": "<hex-token>",
+  "gamification-service": "<hex-token>",
+  "automation-service": "<hex-token>",
+  "media-events": "<hex-token>"
 }
 ```
 
@@ -182,6 +208,11 @@ interface UnifiedIdentity {
 | Merchant | `JWT_MERCHANT_SECRET`, `OTP_PEPPER`, `INTERNAL_WEBHOOK_SECRET` |
 | Auth | `JWT_ADMIN_SECRET`, `JWT_REFRESH_SECRET`, `OTP_HMAC_SECRET` |
 | Payment | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` |
+| Ads Service | `ADS_JWT_SECRET`, `INTENT_CAPTURE_URL`, `EVENT_PLATFORM_URL`, `RAZORPAY_WEBHOOK_SECRET` |
+| Decision Service | `INTENT_CAPTURE_URL`, `INTELLIGENCE_HUB_URL`, `INSIGHTS_SERVICE_URL` |
+| Gamification | `WALLET_SERVICE_URL`, `INTENT_CAPTURE_URL` |
+| Automation | `ALLOWED_TRACK_DOMAINS`, `SMTP_*` |
+| Media Events | `CLOUDINARY_*`, `CDN_URL` |
 
 ---
 
