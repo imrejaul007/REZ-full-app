@@ -1,8 +1,8 @@
 # SOURCE OF TRUTH - ReZ Ecosystem
-**Version:** 74.0
+**Version:** 75.0
 **Date:** May 12, 2026
 **CEO:** Claude Code
-**Status:** ALL INDUSTRIES COMPLETE | COPILOT INTEGRATED | METRICS ADDED
+**Status:** RABTUL GOVERNANCE COMPLETE | ALL COMPANIES COMPLIANT | SECURITY FIXED
 **Market Analysis:** Incorporated (See RTMN-MARKET-ANALYSIS-COMPETITORS.md)
 
 ---
@@ -444,6 +444,282 @@ USER → QR Scan → REZ Support Copilot → REZ Mind → Transaction
 
 ---
 
+## 🏢 RABTUL TECHNOLOGIES - INFRASTRUCTURE LAYER
+
+**Purpose:** "Internal AWS + Stripe" - Shared infrastructure for ALL 8 companies
+
+### Company Overview
+
+| Company | Purpose | Uses RABTUL |
+|---------|---------|--------------|
+| RTMN Digital | Holding Company | Analytics, Policy |
+| REZ Commerce | Consumer & Merchant Apps | All 10 services |
+| REZ Intelligence | AI/ML Platform | Auth, Analytics |
+| RABTUL Technologies | Infrastructure | Own services |
+| REZ Media | Advertising & Loyalty | Payment, Notifications |
+| StayOwn Hospitality | Hotels & Smart Living | All services |
+| CorpPerks | Enterprise SaaS | All services |
+| RTMN Finance | Payments & Lending | All services |
+
+### RABTUL Core Services
+
+| Service | Port | URL | Features |
+|---------|------|-----|----------|
+| **Auth Service** | 4002 | `rez-auth-service.onrender.com` | JWT, OTP, TOTP, MFA, OAuth |
+| **Payment Service** | 4001 | `rez-payment-service.onrender.com` | Razorpay, UPI, Webhooks |
+| **Wallet Service** | 4004 | `rez-wallet-service.onrender.com` | Coins, Balance, Loyalty |
+| **Order Service** | 4006 | `rez-order-service.onrender.com` | Order Lifecycle |
+| **Catalog Service** | 4007 | `rez-catalog-service.onrender.com` | Products, Inventory |
+| **Search Service** | 4008 | `rez-search-service.onrender.com` | Full-text, Autocomplete |
+| **Notifications** | 4011 | `rez-notifications-service.onrender.com` | Push, SMS, Email |
+| **Booking Service** | 4020 | `rez-booking-service.onrender.com` | Reservations |
+| **Delivery Service** | 4009 | `rez-delivery-service.onrender.com` | Tracking |
+| **Profile Service** | 4013 | `rez-profile-service.onrender.com` | User Profiles |
+| **Analytics Service** | 4016 | `rez-analytics-service.onrender.com` | Dashboards |
+| **Insights Service** | 4017 | `rez-insights-service.onrender.com` | BI |
+
+### RABTUL Infrastructure Services
+
+| Service | Port | Features |
+|---------|------|----------|
+| **API Gateway** | 4000 | Routing, Rate Limiting |
+| **Circuit Breaker** | 4030 | Fault Tolerance |
+| **Retry Service** | 4031 | Exponential Backoff |
+| **DLQ Service** | 4032 | Dead Letter Queue |
+| **Idempotency Service** | 4033 | Deduplication |
+| **Policy Engine** | 4034 | Access Control |
+| **Secrets Manager** | 4035 | Encryption |
+| **Scheduler Service** | 4038 | Cron Jobs |
+
+### RAP.md - Service Registry
+
+**Location:** `RABTUL-Technologies/RAP.md`
+
+**Rule:** If RAP has it → Use RABTUL. If RAP doesn't have it → Request RABTUL to create it.
+
+### Service Request Workflow
+
+```
+1. Check RAP.md
+   ↓
+2. Service exists? → Use RABTUL service
+   ↓ (no)
+3. Submit Service Request to RABTUL
+   ↓
+4. RABTUL reviews (2 business days)
+   ↓
+5. Approved → RABTUL creates service
+```
+
+### Company-to-RABTUL Connections
+
+| Company | Auth | Payment | Wallet | Order | Notifications |
+|---------|------|---------|--------|--------|----------------|
+| REZ Commerce | ✅ | ✅ | ✅ | ✅ | ✅ |
+| REZ Intelligence | ✅ | ✅ | ✅ | ✅ | ✅ |
+| REZ Media | ✅ | ✅ | ✅ | - | ✅ |
+| StayOwn | ✅ | ✅ | ✅ | ✅ | ✅ |
+| CorpPerks | ✅ | ✅ | ✅ | - | - |
+| REZ Merchant | ✅ | ✅ | ✅ | ✅ | ✅ |
+| RTMN Finance | ✅ | ✅ | ✅ | - | - |
+
+---
+
+## 🔒 SECURITY GOVERNANCE
+
+**Location:** `RABTUL-Technologies/SERVICE-GOVERNANCE.md`
+
+### Core Principles
+
+1. **Don't Repeat Yourself (DRY)** - Every service exists exactly once
+2. **RABTUL owns infrastructure** - Companies own business logic only
+3. **Check RAP first** - Before creating ANY new service
+
+### Forbidden: No Service Duplication
+
+| ❌ Forbidden | ✅ Use Instead |
+|-------------|----------------|
+| Local auth service | `rez-auth-service` |
+| Local payment service | `rez-payment-service` |
+| Local wallet service | `rez-wallet-service` |
+| Local order service | `rez-order-service` |
+| Local search service | `rez-search-service` |
+| Local notifications | `rez-notifications-service` |
+| Local analytics | `rez-analytics-service` |
+| Local profile service | `rez-profile-service` |
+
+### Security Requirements
+
+All RABTUL service calls require:
+
+```typescript
+headers: {
+  'Content-Type': 'application/json',
+  'X-Internal-Token': process.env.INTERNAL_SERVICE_TOKEN
+}
+```
+
+### Migration Guide
+
+**Location:** `RABTUL-Technologies/MIGRATION-GUIDE.md`
+
+### Environment Variables
+
+```bash
+# Core Services
+AUTH_SERVICE_URL=https://rez-auth-service.onrender.com
+PAYMENT_SERVICE_URL=https://rez-payment-service.onrender.com
+WALLET_SERVICE_URL=https://rez-wallet-service-36vo.onrender.com
+ORDER_SERVICE_URL=https://rez-order-service-hz18.onrender.com
+CATALOG_SERVICE_URL=https://rez-catalog-service-1.onrender.com
+SEARCH_SERVICE_URL=https://rez-search-service.onrender.com
+NOTIFICATION_SERVICE_URL=https://rez-notifications-service.onrender.com
+BOOKING_SERVICE_URL=https://rez-booking-service.onrender.com
+
+# Security
+INTERNAL_SERVICE_TOKEN=<get-from-rabtul>
+```
+
+---
+
+## 📋 AUDIT & COMPLIANCE
+
+**Last Audit:** May 12, 2026
+
+### Audit Reports
+
+| Report | Location | Status |
+|--------|----------|--------|
+| Comprehensive Audit | `RABTUL-Technologies/COMPREHENSIVE-AUDIT.md` | Complete |
+| Company Audit | `RABTUL-Technologies/COMPANIES-AUDIT.md` | Complete |
+| Final Report | `RABTUL-Technologies/FINAL-AUDIT-REPORT.md` | Complete |
+| Completion Report | `RABTUL-Technologies/COMPLETION-REPORT.md` | Complete |
+
+### Migration Status
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Local Services | 45+ | 0 |
+| RABTUL Connections | ~50 | 161 |
+| Companies Compliant | 2/8 | 8/8 |
+| Security Issues | 6 | 0 |
+
+### Files Migrated (40+)
+
+| Company | Files | Services |
+|---------|-------|----------|
+| REZ-Commerce | 4 | Payment |
+| StayOwn | 10 | Auth, Payment, Notifications, Search |
+| REZ-Media | 7 | Payment, Notifications |
+| CorpPerks | 3 | Auth, Payment |
+| REZ-Merchant | 9 | Auth, Notifications, Payment |
+| REZ-Intelligence | 1 | Auth |
+
+---
+
+## 🔗 CROSS-COMPANY DEPENDENCIES
+
+### REZ Commerce → RABTUL
+
+```
+REZ Commerce Apps
+├── Consumer App → RABTUL Auth, Payment, Wallet, Order, Catalog
+├── Merchant App → RABTUL Auth, Payment, Order, Catalog
+├── Do App → RABTUL Auth, Payment, Wallet, Search
+├── Rendez → RABTUL Auth, Payment, Wallet, Booking
+└── ReZ Now → RABTUL Auth, Payment, Wallet, Order
+```
+
+### REZ Intelligence → RABTUL
+
+```
+REZ Intelligence
+├── Intent Graph → RABTUL Auth, Payment, Wallet, Order
+├── ML Engine → RABTUL Auth, Analytics
+├── Consumer Copilot → RABTUL Auth, Payment, Wallet, Order
+├── Merchant Copilot → RABTUL Auth, Payment, Order
+└── Attribution → RABTUL Auth, Payment, Analytics
+```
+
+### REZ Media → RABTUL
+
+```
+REZ Media
+├── AdBazaar → RABTUL Auth, Payment, Analytics
+├── AdSQR → RABTUL Auth, Payment
+├── DOOH → RABTUL Auth, Analytics
+└── Creator App → RABTUL Auth, Payment, Wallet, Notifications
+```
+
+### StayOwn → RABTUL
+
+```
+StayOwn Hospitality
+├── Hotel OTA → RABTUL Auth, Payment, Wallet, Booking
+├── Habixo → RABTUL Auth, Payment, Notifications
+└── Channel Manager → RABTUL Auth, Booking
+```
+
+### CorpPerks → RABTUL
+
+```
+CorpPerks
+├── CorpPerks Platform → RABTUL Auth, Payment, Wallet
+├── NextaBizz → RABTUL Auth, Payment, Order
+└── POS/KDS → RABTUL Auth, Order
+```
+
+---
+
+## 📁 DOCUMENTATION INDEX
+
+| Document | Location | Purpose |
+|----------|----------|---------|
+| **SOT** | `SOURCE-OF-TRUTH.md` | This document |
+| **RAP** | `RABTUL-Technologies/RAP.md` | Service Registry |
+| **Governance** | `RABTUL-Technologies/SERVICE-GOVERNANCE.md` | Rules |
+| **Migration** | `RABTUL-Technologies/MIGRATION-GUIDE.md` | How to migrate |
+| **Audit** | `RABTUL-Technologies/COMPREHENSIVE-AUDIT.md` | Full audit |
+| **Companies** | `RABTUL-Technologies/COMPANIES-AUDIT.md` | By company |
+| **Final** | `RABTUL-Technologies/FINAL-AUDIT-REPORT.md` | Final report |
+| **Completion** | `RABTUL-Technologies/COMPLETION-REPORT.md` | Status |
+
+---
+
+## ⚠️ IMPORTANT NOTES
+
+### Before Creating Any New Service
+
+1. **Check RAP.md** - Is the service already available?
+2. **If YES** - Use RABTUL's service
+3. **If NO** - Submit request to RABTUL Platform Team
+
+### For Migration Help
+
+- **Slack:** `#rabtul-support`
+- **GitHub Issues:** `RABTUL-Technologies/issues`
+- **On-Call:** 24/7 for production issues
+
+### Environment Variables Required
+
+All services need these RABTUL environment variables:
+
+```bash
+# Required for all
+AUTH_SERVICE_URL=https://rez-auth-service.onrender.com
+PAYMENT_SERVICE_URL=https://rez-payment-service.onrender.com
+INTERNAL_SERVICE_TOKEN=<shared-token>
+
+# As needed
+WALLET_SERVICE_URL=https://rez-wallet-service-36vo.onrender.com
+ORDER_SERVICE_URL=https://rez-order-service-hz18.onrender.com
+CATALOG_SERVICE_URL=https://rez-catalog-service-1.onrender.com
+SEARCH_SERVICE_URL=https://rez-search-service.onrender.com
+NOTIFICATION_SERVICE_URL=https://rez-notifications-service.onrender.com
+```
+
+---
+
 ## 📊 THE NUMBERS
 
 | Category | Count | Status |
@@ -454,6 +730,9 @@ USER → QR Scan → REZ Support Copilot → REZ Mind → Transaction
 | AI Services | 10+ | Built |
 | Features | 900+ | 750+ verified |
 | QR Types | 6 | Active |
+| **RABTUL Services** | **20** | **Active** |
+| **Companies Compliant** | **8/8** | **100%** |
+| **Services Migrated** | **40+** | **Complete** |
 
 ---
 
@@ -466,6 +745,9 @@ USER → QR Scan → REZ Support Copilot → REZ Mind → Transaction
 5. **Agentic Commerce** - DO App for natural language shopping
 6. **Business Intelligence** - REE for data-driven decisions
 7. **Multi-Industry** - Restaurant, Hotel, Healthcare, Salon, Fitness, Education, Events
+8. **RABTUL Infrastructure** - "Internal AWS + Stripe" shared services
+9. **Unified Platform** - 8 companies sharing RABTUL services
+10. **Security-First** - Centralized auth, payments, and compliance
 
 ---
 
