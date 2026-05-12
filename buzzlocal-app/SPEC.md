@@ -729,11 +729,20 @@ All events sent to `rez-analytics-service` and ReZ Mind:
 - [x] Leaderboards
 - [x] Creator dashboard
 
-### Phase 5: Intelligence
-- [ ] AI cards in feed
-- [ ] Vibe Map predictions
-- [ ] Personalized recommendations
-- [ ] ReZ Mind integration
+### Phase 5: Intelligence ✅
+- [x] AI cards in feed
+- [x] Vibe Map predictions
+- [x] Personalized recommendations
+- [x] REZ Mind integration
+
+#### REZ Intelligence Integration
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| buzzlocal-intelligence-service | 4010 | AI intelligence bridge |
+| REZ-event-platform | 4008 | Event tracking |
+| REZ-unified-recommendations | 4090 | Recommendations |
+| REZ-taste-profile | 4041 | User preferences |
 
 ---
 
