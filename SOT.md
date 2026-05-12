@@ -1,7 +1,7 @@
 # REZ Platform - Source of Truth (SOT)
 
 **Last Updated:** May 12, 2026
-**Version:** 2.0.0
+**Version:** 3.0.0
 
 ---
 
@@ -12,9 +12,169 @@
 | `REZ-Media` | Advertising, loyalty, marketing automation | `imrejaul007/REZ-Media` |
 | `REZ-Intelligence` | AI/ML services, event bus, identity, Agent-OS (38 agents) | `imrejaul007/REZ-Intelligence` |
 | `RABTUL-Technologies` | Core platform services (auth, wallet, payment) | `imrejaul007/RABTUL-Technologies` |
-| `REZ-Consumer` | Mobile apps (Hotel OTA, Rendez, Food Delivery) | `imrejaul007/REZ-Consumer` |
+| `REZ-Consumer` | Mobile apps (Hotel OTA, Rendez, Food Delivery, **Do App**) | `imrejaul007/REZ-Consumer` |
 | `REZ-Merchant` | Merchant OS, admin dashboards, integrations | `imrejaul007/REZ-Merchant` |
 | `rez-merchant-service` | Core merchant API service | `imrejaul007/rez-merchant-service` |
+| **`buzzlocal-app`** | **Hyperlocal social + discovery app** | `imrejaul007/buzzlocal-app` |
+| **`buzzlocal-services`** | **Backend services for BuzzLocal** | `imrejaul007/buzzlocal-services` |
+
+---
+
+## BuzzLocal
+
+**Hyperlocal social + discovery app** - Users find all local information (events, news, places, offers) and earn ReZ Coins for contributing.
+
+### Location
+- **Frontend**: `buzzlocal-app/` (Expo/React Native)
+- **Backend**: `buzzlocal-services/` (8 microservices)
+
+### Documentation
+- [README.md](buzzlocal-app/README.md) - App documentation
+- [SPEC.md](buzzlocal-app/SPEC.md) - Full specification
+- [CLAUDE.md](buzzlocal-app/CLAUDE.md) - Development guidelines
+- [Services README](buzzlocal-services/README.md) - Backend documentation
+
+### Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| buzzlocal-feed-service | 4000 | Posts, feed, AI cards, coin rewards |
+| buzzlocal-vibe-service | 4003 | Vibe areas, check-ins, crowd heatmap |
+| buzzlocal-community-service | 4004 | Communities, group posts, members |
+| z-events-service | 4008 | Events, ticketing, QR check-in |
+| buzzlocal-intelligence-service | 4010 | AI intelligence, REZ Mind integration |
+| buzzlocal-notification-service | 4011 | Push notifications via Expo |
+| buzzlocal-realtime-service | 4012 | WebSocket real-time updates |
+| buzzlocal-payment-service | 4013 | Payments via Razorpay |
+
+### Service URLs
+
+#### Production
+```
+BUZZLOCAL_FEED=https://buzzlocal-feed.onrender.com
+BUZZLOCAL_VIBE=https://buzzlocal-vibe.onrender.com
+BUZZLOCAL_COMMUNITY=https://buzzlocal-community.onrender.com
+BUZZLOCAL_EVENTS=https://buzzlocal-events.onrender.com
+BUZZLOCAL_INTELLIGENCE=https://buzzlocal-intelligence.onrender.com
+BUZZLOCAL_NOTIFICATIONS=https://buzzlocal-notifications.onrender.com
+BUZZLOCAL_REALTIME=https://buzzlocal-realtime.onrender.com
+BUZZLOCAL_PAYMENT=https://buzzlocal-payment.onrender.com
+```
+
+#### Development
+```
+BUZZLOCAL_FEED=http://localhost:4000
+BUZZLOCAL_VIBE=http://localhost:4003
+BUZZLOCAL_COMMUNITY=http://localhost:4004
+BUZZLOCAL_EVENTS=http://localhost:4008
+BUZZLOCAL_INTELLIGENCE=http://localhost:4010
+BUZZLOCAL_NOTIFICATIONS=http://localhost:4011
+BUZZLOCAL_REALTIME=http://localhost:4012
+BUZZLOCAL_PAYMENT=http://localhost:4013
+```
+
+### API Endpoints
+
+#### Feed Service (4000)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/feed` | Get personalized feed |
+| POST | `/posts` | Create post |
+| POST | `/posts/:id/like` | Like post |
+
+#### Vibe Service (4003)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/vibe/areas` | Get nearby vibe areas |
+| POST | `/checkin` | Check in |
+
+#### Events Service (4008)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/events` | List events |
+| POST | `/tickets` | Purchase ticket |
+
+#### Intelligence Service (4010)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/ai/cards` | Get AI cards |
+| GET | `/ai/mood` | Predict area mood |
+
+### Features
+- **Post Types**: General, Event, Alert, Place, Deal, Poll
+- **Coin Rewards**: 15-50 coins per action
+- **Gamification**: Badges, streaks, leaderboards
+- **REZ Mind**: All actions tracked for AI training
+
+---
+
+## Do App
+
+**AI-powered chat commerce app** - The conversational interface for the ReZ ecosystem.
+
+### Location
+- **Frontend**: `REZ-Consumer/do-app/` (Expo/React Native)
+- **Backend**: `REZ-Consumer/do-app/do-backend/` (Express.js)
+
+### Documentation
+- [CLAUDE.md](REZ-Consumer/do-app/CLAUDE.md) - Development guidelines
+- [SECURITY.md](REZ-Consumer/do-app/do-backend/SECURITY.md) - Security rules
+- [DO-APP-SPEC.md](docs/DO-APP-SPEC.md) - Full specification
+- [DO-TECHNICAL-INTEGRATION.md](docs/DO-TECHNICAL-INTEGRATION.md) - API details
+
+### Service URLs
+
+#### Do App Backend (Production)
+```
+DO_API=https://do-backend.onrender.com
+DO_WS=wss://do-backend.onrender.com/stream
+```
+
+#### Do App Backend (Development)
+```
+DO_API=http://localhost:3000
+DO_WS=ws://localhost:3000/stream
+```
+
+### Security Requirements
+
+| Variable | Requirement | Production Check |
+|----------|-------------|-----------------|
+| `JWT_SECRET` | 32+ characters | Fails if missing/short |
+| `OTP_SECRET` | 32+ characters | Fails if missing/short |
+| `CORS_ORIGIN` | Specific URL | Fails if `*` in prod |
+| `NODE_ENV` | `production` | Enables security checks |
+
+### API Endpoints
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/auth/otp/send` | Public | Send OTP |
+| POST | `/auth/otp/verify` | Public | Verify OTP |
+| GET | `/auth/me` | JWT | Get current user |
+| POST | `/auth/logout` | JWT | Logout |
+| POST | `/auth/refresh` | Public | Refresh token |
+| POST | `/do/chat/message` | JWT | AI chat |
+| GET | `/discovery` | Optional | Search venues |
+| GET | `/discovery/trending` | Optional | Trending |
+| GET | `/wallet` | JWT | Balance |
+| POST | `/wallet/debit` | JWT | Deduct (idempotent) |
+| POST | `/wallet/credit` | JWT | Add (idempotent) |
+| GET | `/bookings` | JWT | User bookings |
+
+### Key Features
+- [x] AI chat interface
+- [x] Phone + OTP authentication
+- [x] Wallet integration (coins, karma)
+- [x] Venue discovery
+- [x] Booking management
+- [x] Real-time WebSocket
+- [x] Offline support
+- [x] Idempotent transactions
+- [x] Rate limiting
+- [x] Input validation (Zod)
+
+---
 
 ---
 
@@ -54,6 +214,16 @@ NOTIFICATIONS_HUB=https://rez-notifications-hub.onrender.com
 NOTIFICATIONS_SERVICE=https://rez-notifications-service.onrender.com
 UNIFIED_MESSAGING=https://rez-unified-messaging.onrender.com
 UNIFIED_CHAT=https://rez-unified-chat.onrender.com
+
+# BuzzLocal
+BUZZLOCAL_FEED=https://buzzlocal-feed.onrender.com
+BUZZLOCAL_VIBE=https://buzzlocal-vibe.onrender.com
+BUZZLOCAL_COMMUNITY=https://buzzlocal-community.onrender.com
+BUZZLOCAL_EVENTS=https://buzzlocal-events.onrender.com
+BUZZLOCAL_INTELLIGENCE=https://buzzlocal-intelligence.onrender.com
+BUZZLOCAL_NOTIFICATIONS=https://buzzlocal-notifications.onrender.com
+BUZZLOCAL_REALTIME=https://buzzlocal-realtime.onrender.com
+BUZZLOCAL_PAYMENT=https://buzzlocal-payment.onrender.com
 ```
 
 ### Development (Local)
@@ -167,6 +337,12 @@ X-Signature: <hmac-sha256-hex>
 | Auth middleware | ✅ | REZ-Intelligence |
 | Rate limiting | ✅ | REZ-Intelligence |
 | HSTS headers | ✅ | RABTUL-Technologies |
+| **OTP bypass removed** | ✅ | **do-backend** |
+| **Mock OTP exposure removed** | ✅ | **do-backend** |
+| **WebSocket auth required** | ✅ | **do-backend** |
+| **Wallet idempotency** | ✅ | **do-backend** |
+| **Input validation (Zod)** | ✅ | **do-backend** |
+| **Production secret enforcement** | ✅ | **do-backend** |
 
 ---
 
@@ -322,3 +498,268 @@ For issues or questions, refer to:
 - Security: `security@rez.money`
 - Platform: `platform@rez.money`
 - Documentation: See individual service README.md
+
+---
+
+## Merchant Intelligence Platform
+
+**Last Updated:** May 12, 2026
+
+### Overview
+
+The Merchant Intelligence Platform provides cross-merchant analytics and benchmarking, enabling merchants to compare performance against industry benchmarks, view demand heatmaps, and discover expansion opportunities.
+
+### Components
+
+| Component | Location | Description |
+|-----------|----------|-------------|
+| **Intelligence Aggregator** | `REZ-Merchant/rez-merchant-intelligence-aggregator/` | Core aggregation service |
+| **Market View UI** | `REZ-Merchant/REZ-dashboard/src/app/market/` | Dashboard analytics UI |
+| **Consent Flow** | `REZ-Merchant/rez-app-merchant/app/settings/` | GDPR consent management |
+| **Data Pipeline** | `REZ-Merchant/rez-merchant-service/src/services/intelligenceDataPipeline.ts` | Order-to-aggregator sync |
+
+### Privacy-First Design
+
+- **GDPR Compliant**: Consent-based data sharing
+- **Anonymization**: All aggregated metrics use differential privacy
+- **Thresholds**: Minimum 3 merchants required for aggregation
+- **No PII**: No personally identifiable information in aggregated data
+
+### Revenue Model - SaaS Tiers
+
+| Tier | Price | Features |
+|------|-------|----------|
+| **Free** | $0 | Basic analytics, own data only |
+| **Pro** | $49/mo | Neighborhood trends, benchmarks |
+| **Business** | $199/mo | Competitor analysis, AI recommendations |
+| **Enterprise** | $999/mo | Full API access, custom reports |
+
+### API Endpoints
+
+#### Merchant Service - Intelligence
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/merchant/intelligence/market/heatmap/:city` | JWT | Demand heatmap |
+| GET | `/api/v1/merchant/intelligence/market/neighborhood` | JWT | Neighborhood analysis |
+| GET | `/api/v1/merchant/intelligence/market/trends/:locality` | JWT | Demand trends |
+| GET | `/api/v1/merchant/intelligence/market/benchmark` | JWT | Industry benchmarks |
+| GET | `/api/v1/merchant/intelligence/market/opportunities` | JWT | Expansion opportunities |
+| POST | `/api/v1/merchant/intelligence/market/opt-in` | JWT | Join market intelligence |
+| POST | `/api/v1/merchant/intelligence/market/opt-out` | JWT | Leave market intelligence |
+
+#### Intelligence Aggregator - Internal
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/internal/aggregate` | Internal | Submit merchant metrics |
+| POST | `/internal/consent` | Internal | Update consent |
+| POST | `/internal/run-aggregation` | Internal | Trigger aggregation |
+
+#### Intelligence Aggregator - Public
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/benchmark/industry/:industry` | Industry benchmarks |
+| GET | `/api/v1/heatmap/demand/:city` | Demand heatmap |
+| GET | `/api/v1/heatmap/neighborhood` | Neighborhood analysis |
+| GET | `/api/v1/heatmap/trending` | Trending localities |
+| GET | `/api/v1/heatmap/opportunities` | Opportunity areas |
+| GET | `/api/v1/trends/demand/:locality` | Demand trends |
+
+### Data Pipeline
+
+```
+Order Completed → Merchant Service → Intelligence Aggregator
+                                          │
+                                          └── Aggregation Engine
+                                          └── Anonymize & Aggregate
+                                          └── Store in MongoDB
+                                          └── Cache in Redis
+```
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `INTELLIGENCE_AGGREGATOR_URL` | URL of the aggregator service |
+
+### Service URLs
+
+```
+# Development
+MERCHANT_INTELLIGENCE_AGGREGATOR=http://localhost:4011
+
+# Production
+MERCHANT_INTELLIGENCE_AGGREGATOR=https://rez-merchant-intelligence-aggregator.onrender.com
+```
+
+---
+
+## REZ-Media Platform
+
+**Comprehensive advertising & marketing platform** - Like Google Ads + Meta Ads + DOOH Exchange
+
+**Last Updated:** May 12, 2026
+
+### Overview
+
+REZ-Media combines digital advertising, DOOH, offline ads, QR campaigns, and broadcast marketing with AI-powered dynamic pricing.
+
+### Ad Types (38 Total)
+
+| Category | Count | Examples |
+|----------|-------|----------|
+| In-App Ads | 4 | Banner, Feed, Store, Search |
+| DOOH | 7 | Mall LED, Restaurant TV, Gym, Office, Transit |
+| Offline | 8 | Standees, Posters, Billboards, Table Tents |
+| QR | 6 | Poster, Table Tent, Window, Receipt |
+| Broadcast | 5 | WhatsApp, SMS, Email, Push, In-App |
+| Influencer | 5 | Instagram, YouTube, Reels, TikTok |
+| Search | 3 | Text, Product, Category |
+
+### Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| REZ-ads-service | 4007 | Ad campaigns, serving |
+| REZ-pricing-engine | 4008 | AI dynamic pricing |
+| REZ-marketing | 4000 | Broadcasts, segments |
+| REZ-communications | 3009 | WhatsApp, SMS, Email, Push |
+| REZ-gamification | 3004 | Points, badges, streaks |
+| REZ-lead-intelligence | - | AI segments |
+| REZ-decision-service | - | Personalization |
+| REZ-automation | - | Workflow automation |
+| REZ-media-events | - | Event tracking |
+| REZ-economic-engine | - | Commission rules |
+| adsqr | 3008 | QR campaigns |
+| dooh-service | - | DOOH platform |
+
+### UI Apps
+
+| App | Description |
+|-----|-------------|
+| adBazaar | Ad marketplace |
+| rez-marketing-dashboard | Merchant dashboard |
+| dooh-screen-app | Screen owner web |
+| dooh-mobile | Screen owner mobile |
+| rez-whatsapp-store-ui | WhatsApp commerce |
+| rez-chatbot-builder-ui | Chatbot builder |
+| rez-crm-ui | CRM dashboard |
+
+### AI Pricing Features
+
+| Feature | Description |
+|---------|-------------|
+| Dynamic Pricing | Surge, demand, competition |
+| Quality Score | Like Google Ads |
+| Price Caps | Max 8x for DOOH |
+| Minimum Spend | ₹300-5,000 |
+| Inventory Liquidation | Auto-discount unsold |
+| Smart Budget AI | Auto-allocate channels |
+
+### Merchant Wallet Flow
+
+```
+1. Merchant adds funds to wallet
+2. Create campaign → Reserve budget
+3. Campaign runs → Deduct per event
+4. Campaign ends → Release unused
+```
+
+### Service URLs (Development)
+
+```bash
+# REZ-Media Services
+ADS_SERVICE=http://localhost:4007
+PRICING_ENGINE=http://localhost:4008
+MARKETING_SERVICE=http://localhost:4000
+COMMUNICATIONS=http://localhost:3009
+GAMIFICATION=http://localhost:3004
+DOOH_SERVICE=http://localhost:4004
+ADSQR=http://localhost:3008
+```
+
+### Service URLs (Production)
+
+```bash
+# REZ-Media Services
+ADS_SERVICE=https://rez-ads-service.onrender.com
+PRICING_ENGINE=https://rez-pricing-engine.onrender.com
+MARKETING_SERVICE=https://rez-marketing.onrender.com
+COMMUNICATIONS=https://rez-communications.onrender.com
+GAMIFICATION=https://rez-gamification.onrender.com
+```
+
+### Key API Endpoints
+
+```bash
+# Pricing
+POST /api/price - Calculate dynamic price
+POST /api/price/allocate - Smart budget
+POST /api/price/liquidation - Unsold discount
+
+# Campaigns
+POST /api/campaigns/unified - Create with wallet
+GET /api/campaigns/:id/status - Wallet usage
+
+# Ads
+GET/POST /api/ads - List/Create ads
+POST /api/serve - Serve ad
+POST /api/events/click - Record click
+
+# Broadcasts
+POST /api/broadcasts/whatsapp
+POST /api/broadcasts/sms
+POST /api/broadcasts/email
+POST /api/broadcasts/push
+```
+
+### Directory Structure
+
+```
+REZ-Media/
+├── REZ-ads-service/           # Ad campaigns
+├── REZ-pricing-engine/        # AI pricing
+├── REZ-marketing/             # Broadcasts
+├── REZ-communications-platform/ # WhatsApp, SMS, Email
+├── REZ-gamification-service/  # Loyalty
+├── REZ-lead-intelligence/     # AI segments
+├── REZ-decision-service/      # Personalization
+├── REZ-automation-service/    # Workflows
+├── REZ-media-events/          # Event tracking
+├── REZ-economic-engine/       # Commission rules
+├── adsqr/                     # QR campaigns
+├── dooh/                      # DOOH platform
+├── dooh-screen-app/           # Screen owner UI
+├── dooh-mobile/               # Screen owner app
+├── rez-dooh-service/          # DOOH backend
+├── adBazaar/                  # Ad marketplace
+├── rez-whatsapp-store/        # Commerce
+├── rez-whatsapp-provisioning/ # Multi-tenant
+├── rez-marketing-dashboard/   # Merchant UI
+├── rez-chatbot-builder-ui/     # Chatbot builder
+├── rez-crm-ui/               # CRM dashboard
+└── rez-ad-campaigns/         # Campaign mgmt
+```
+
+### Documentation
+
+| Document | Description |
+|----------|-------------|
+| ARCHITECTURE.md | Complete architecture |
+| FEATURES.md | All features |
+| AD_TYPES_AND_WALLET_FLOW.md | Ad types & wallet |
+| COMPLETE_GAP_AUDIT.md | Gap analysis |
+| PRICING_MATRIX.md | Pricing details |
+| MARKETING_HUB.md | Marketing platform |
+
+### External API Dependencies
+
+| Provider | Service | Status |
+|----------|---------|--------|
+| Twilio | WhatsApp, SMS | Credentials needed |
+| SendGrid | Email | Credentials needed |
+| Firebase | Push | Credentials needed |
+| OpenAI | AI features | Credentials needed |
+| Razorpay | Payments | Credentials needed |
