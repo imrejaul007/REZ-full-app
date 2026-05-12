@@ -12,7 +12,8 @@ import mongoose from 'mongoose';
 import * as crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import redisService from '../services/redisService';
-import Razorpay from 'razorpay';
+// RABTUL: Use centralized payment service instead of direct Razorpay SDK
+// import Razorpay from 'razorpay';
 import axios from 'axios';
 import { idempotencyMiddleware } from '../middleware/idempotency';
 import { verifyToken, authenticate, requireAdmin } from '../middleware/auth';
@@ -1320,16 +1321,41 @@ router.post(
     let razorpayOrder: RazorpayOrder | null = null;
     if (!isMockPayment) {
       try {
-        const rz = new Razorpay({
-          key_id: process.env.RAZORPAY_KEY_ID,
-          key_secret: process.env.RAZORPAY_KEY_SECRET,
+        // RABTUL: Use centralized payment service instead of direct Razorpay SDK
+        const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || 'https://rez-payment-service.onrender.com';
+        const INTERNAL_SERVICE_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || '';
+
+        const response = await fetch(`${PAYMENT_SERVICE_URL}/api/payments/initiate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+          },
+          body: JSON.stringify({
+            amount: totalPaise,
+            currency: 'INR',
+            receipt: orderNumber,
+            notes: { storeSlug, customerPhone, orderNumber, channel: 'web_qr' },
+          }),
         });
-        razorpayOrder = (await rz.orders.create({
+
+        if (!response.ok) {
+          const error = await response.text();
+          throw new Error(`Payment service error: ${response.status} - ${error}`);
+        }
+
+        const paymentResult = await response.json();
+        razorpayOrder = {
+          id: paymentResult.orderId || paymentResult.id,
+          entity: 'order',
           amount: totalPaise,
+          amount_paid: 0,
+          amount_due: totalPaise,
           currency: 'INR',
           receipt: orderNumber,
-          notes: { storeSlug, customerPhone, orderNumber, channel: 'web_qr' },
-        })) as RazorpayOrder;
+          status: 'created',
+          created_at: Math.floor(Date.now() / 1000),
+        } as RazorpayOrder;
       } catch (rzErr) {
         logger.error(
           '[WEB ORDER] Razorpay order creation failed:',
@@ -1487,33 +1513,44 @@ router.post(
       return res.json({ success: true, message: 'Already verified' });
     }
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    if (!keySecret) {
-      return sendErrorResponse(
-        res,
-        503,
-        'Payment verification unavailable: gateway not configured',
-        'GATEWAY_NOT_CONFIGURED',
-      );
-    }
-    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
-    const expected = crypto.createHmac('sha256', keySecret).update(body).digest('hex');
+    // RABTUL: Use centralized payment service for verification
+    const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || 'https://rez-payment-service.onrender.com';
+    const INTERNAL_SERVICE_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || '';
 
     try {
-      const expectedBuf = Buffer.from(expected, 'hex');
-      const receivedBuf = Buffer.from(razorpay_signature, 'hex');
-      const isValid = expectedBuf.length === receivedBuf.length && crypto.timingSafeEqual(expectedBuf, receivedBuf);
-      if (!isValid) {
+      const verifyResponse = await fetch(`${PAYMENT_SERVICE_URL}/api/payments/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+        },
+        body: JSON.stringify({
+          razorpay_order_id: razorpay_order_id,
+          razorpay_payment_id: razorpay_payment_id,
+          razorpay_signature: razorpay_signature,
+        }),
+      });
+
+      if (!verifyResponse.ok) {
+        const error = await verifyResponse.text();
+        order.paymentStatus = 'failed';
+        order.status = 'cancelled';
+        await order.save();
+        return sendErrorResponse(res, 400, `Payment verification failed: ${error}`, 'PAYMENT_VERIFICATION_FAILED');
+      }
+
+      const verifyResult = await verifyResponse.json();
+      if (!verifyResult.success) {
         order.paymentStatus = 'failed';
         order.status = 'cancelled';
         await order.save();
         return sendErrorResponse(res, 400, 'Payment verification failed', 'PAYMENT_VERIFICATION_FAILED');
       }
-    } catch {
+    } catch (verifyErr) {
       order.paymentStatus = 'failed';
       order.status = 'cancelled';
       await order.save();
-      return sendErrorResponse(res, 400, 'Payment verification failed', 'SIGNATURE_MISMATCH');
+      return sendErrorResponse(res, 400, `Payment verification error: ${verifyErr}`, 'PAYMENT_VERIFICATION_ERROR');
     }
 
     // CRIT-2: Atomic update — only flips to 'paid' if the order is still unpaid,
