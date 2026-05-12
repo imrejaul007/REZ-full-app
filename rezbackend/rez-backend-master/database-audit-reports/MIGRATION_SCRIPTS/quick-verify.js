@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://work_db_user:RmptskyDLFNSJGCA@cluster0.ku78x6g.mongodb.net/test';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://work_db_user:<PASSWORD>@cluster0.ku78x6g.mongodb.net/test';
 
 async function quickVerify() {
   try {

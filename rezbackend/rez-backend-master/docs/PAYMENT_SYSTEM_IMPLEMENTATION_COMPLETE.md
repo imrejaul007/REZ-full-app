@@ -281,7 +281,7 @@ STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxx
 STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxx
 
 # Email (for refund notifications)
-SENDGRID_API_KEY=SG.xxxxxxxxxxxxx
+SENDGRID_API_KEY=REDACTED
 SENDGRID_FROM_EMAIL=noreply@yourstore.com
 SENDGRID_FROM_NAME=Your Store
 

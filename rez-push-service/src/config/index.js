@@ -5,7 +5,7 @@ module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
 
   mongodb: {
-    uri: process.env.MONGODB_URI || 'mongodb+srv://work_db_user:ZAFYAYH1zK0C74Ap@rez-intent-graph.a8ilqgi.mongodb.net',
+    uri: process.env.MONGODB_URI || '',  // REQUIRED: Set MONGODB_URI env var
     db: process.env.MONGODB_DB || 'rez_push_service',
   },
 

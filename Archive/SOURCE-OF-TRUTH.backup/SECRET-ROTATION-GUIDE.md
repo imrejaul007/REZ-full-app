@@ -87,7 +87,7 @@ INTERNAL_SERVICE_TOKEN=7ed15a3e7b222f8c432153c18bc7ae52154011e4e881a7e4774fac9da
 
 | Secret | Status | Location |
 |--------|--------|----------|
-| `SENDGRID_API_KEY` | **EXPOSED** | `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` |
+| `SENDGRID_API_KEY` | **EXPOSED** | `REDACTED.C5D75bvrqw2QRqKjxuFthvitPpXfxxW4rCYi5Cjzuu0` |
 
 ---
 
@@ -390,7 +390,7 @@ NEW_INTERNAL_TOKEN=$(openssl rand -hex 32)
 # Step 3: Create new API Key with Mail Send permissions
 
 # Step 4: Update in /rez-notification-events/.env
-# SENDGRID_API_KEY=SG.xxxxx.new_key_here
+# SENDGRID_API_KEY=REDACTED.new_key_here
 
 # Step 5: Verify email sending works
 # Step 6: Delete old API key from SendGrid
@@ -539,7 +539,7 @@ echo "Service Token: $SERVICE_TOKEN"
 
 | Variable | Description | Example Value | Sensitive |
 |----------|-------------|--------------|-----------|
-| `SENDGRID_API_KEY` | Email API key | `SG.xxxxxx` | **YES** |
+| `SENDGRID_API_KEY` | Email API key | `REDACTED` | **YES** |
 | `SENDGRID_FROM_EMAIL` | Sender email | `noreply@rez.money` | No |
 | `CLOUDINARY_CLOUD_NAME` | Media service | `dgqqkrsha` | No |
 | `CLOUDINARY_API_KEY` | Media API key | `134482793194638` | Medium |

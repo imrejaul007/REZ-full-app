@@ -374,7 +374,7 @@ TWILIO_PHONE_NUMBER=+1234567890
 # ===================
 # SENDGRID (Optional - for email)
 # ===================
-SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+SENDGRID_API_KEY=REDACTED
 ```
 
 ---

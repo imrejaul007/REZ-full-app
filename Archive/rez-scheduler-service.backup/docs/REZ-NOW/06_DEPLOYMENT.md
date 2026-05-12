@@ -297,7 +297,7 @@ All backend variables below apply to both `rez-api` and `rez-worker` unless note
 | `TWILIO_ACCOUNT_SID` | Both | SMS OTP sending | `ACxxxxxxxxxxxxxxxx` | Recommended |
 | `TWILIO_AUTH_TOKEN` | Both | Twilio auth | `xxxxxxxxxxxxxxxxxxxxxxxx` | Recommended |
 | `TWILIO_PHONE_NUMBER` | Both | SMS sender number | `+91XXXXXXXXXX` | Recommended |
-| `SENDGRID_API_KEY` | Both | Transactional email | `SG.xxxxxxxxxxxxxxxxx` | Recommended |
+| `SENDGRID_API_KEY` | Both | Transactional email | `REDACTED` | Recommended |
 | `VAPID_PUBLIC_KEY` | Both | `src/services/webPushService.ts` | `(64-char base64)` | Optional |
 | `VAPID_PRIVATE_KEY` | Both | `src/services/webPushService.ts` | `(64-char base64)` | Optional |
 | `VAPID_EMAIL` | Both | `src/services/webPushService.ts` | `mailto:no-reply@rez.money` | Optional |

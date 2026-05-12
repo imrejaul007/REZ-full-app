@@ -182,7 +182,7 @@ Content-Type: application/json
 ```env
 RAZORPAY_KEY_ID=rzp_test_xxxxx
 RAZORPAY_KEY_SECRET=xxxxx
-SENDGRID_API_KEY=SG.xxxxx
+SENDGRID_API_KEY=REDACTED
 SENDGRID_FROM_EMAIL=noreply@yourstore.com
 ```
 

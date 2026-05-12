@@ -122,7 +122,7 @@ BOOKINGCOM_CLIENT_SECRET=abcdef123456789abcdef123456789abcdef12
 
 **Evidence:**
 ```
-SENDGRID_API_KEY=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
+SENDGRID_API_KEY=REDACTED.C5D75bvrqw2QRqKjxuFthvitPpXfxxW4rCYi5Cjzuu0
 ```
 
 **Exploitability:** HIGH - Email sending capability without authentication

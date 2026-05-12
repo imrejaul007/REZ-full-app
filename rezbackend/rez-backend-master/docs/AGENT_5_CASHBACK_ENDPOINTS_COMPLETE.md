@@ -658,7 +658,7 @@ RAZORPAY_X_ACCOUNT_NUMBER=xxxxx  # For payouts
 
 Uses SendGrid for email delivery:
 ```env
-SENDGRID_API_KEY=SG.xxxxx
+SENDGRID_API_KEY=REDACTED
 SENDGRID_FROM_EMAIL=noreply@yourstore.com
 SENDGRID_FROM_NAME=Your Store
 ```
@@ -1009,7 +1009,7 @@ RAZORPAY_X_KEY_ID=rzp_test_xxxxx  # May differ from standard
 RAZORPAY_X_KEY_SECRET=xxxxx       # May differ from standard
 
 # SendGrid
-SENDGRID_API_KEY=SG.xxxxx
+SENDGRID_API_KEY=REDACTED
 SENDGRID_FROM_EMAIL=noreply@yourstore.com
 SENDGRID_FROM_NAME=Your Store
 

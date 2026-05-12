@@ -45,7 +45,7 @@ ADMIN_URL=http://localhost:3001
 Ensure these are NOT placeholder values:
 
 ```env
-SENDGRID_API_KEY=<should start with SG.>
+SENDGRID_API_KEY=<should start with REDACTED>
 RAZORPAY_KEY_ID=<real razorpay key>
 RAZORPAY_KEY_SECRET=<real razorpay secret>
 STRIPE_SECRET_KEY=<real stripe key>

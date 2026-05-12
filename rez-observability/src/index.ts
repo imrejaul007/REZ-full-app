@@ -9,8 +9,8 @@ import mongoose from 'mongoose';
 const app = express();
 app.use(express.json());
 
-const PORT = 4031;
-const MONGODB = 'mongodb+srv://work_db_user:ZAFYAYH1zK0C74Ap@rez-intent-graph.a8ilqgi.mongodb.net/rez-observability';
+const PORT = parseInt(process.env.PORT || '4031', 10);
+const MONGODB = process.env.MONGODB_URI || '';  // REQUIRED: Set MONGODB_URI env var
 
 // Log Entry Schema
 const logEntrySchema = new mongoose.Schema({
