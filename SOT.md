@@ -1,7 +1,7 @@
 # REZ Platform - Source of Truth (SOT)
 
-**Last Updated:** May 12, 2026  
-**Version:** 1.0.0
+**Last Updated:** May 12, 2026
+**Version:** 2.0.0
 
 ---
 
@@ -10,7 +10,7 @@
 | Repository | Purpose | Remote |
 |------------|---------|--------|
 | `REZ-Media` | Advertising, loyalty, marketing automation | `imrejaul007/REZ-Media` |
-| `REZ-Intelligence` | AI/ML services, event bus, identity | `imrejaul007/REZ-Intelligence` |
+| `REZ-Intelligence` | AI/ML services, event bus, identity, Agent-OS (38 agents) | `imrejaul007/REZ-Intelligence` |
 | `RABTUL-Technologies` | Core platform services (auth, wallet, payment) | `imrejaul007/RABTUL-Technologies` |
 | `REZ-Consumer` | Mobile apps (Hotel OTA, Rendez, Food Delivery) | `imrejaul007/REZ-Consumer` |
 | `REZ-Merchant` | Merchant OS, admin dashboards, integrations | `imrejaul007/REZ-Merchant` |
@@ -44,6 +44,10 @@ COMMUNICATIONS_SERVICE=https://rez-communications.onrender.com
 EVENT_PLATFORM=https://rez-event-platform.onrender.com
 INTELLIGENCE_HUB=https://rez-intelligence-hub.onrender.com
 INSIGHTS_SERVICE=https://rez-insights-service.onrender.com
+AGENT_ORCHESTRATOR=https://rez-agent-orchestrator.onrender.com
+COMMERCE_AGENTS=https://rez-commerce-agents.onrender.com
+AUTONOMOUS_AGENTS=https://rez-autonomous-agents.onrender.com
+USER_AGENTS=https://rez-user-agents.onrender.com
 
 # Messaging Services
 NOTIFICATIONS_HUB=https://rez-notifications-hub.onrender.com
@@ -229,6 +233,8 @@ interface UnifiedIdentity {
 | Gamification | `WALLET_SERVICE_URL`, `INTENT_CAPTURE_URL` |
 | Automation | `ALLOWED_TRACK_DOMAINS`, `SMTP_*` |
 | Media Events | `CLOUDINARY_*`, `CDN_URL` |
+| Agent Orchestrator | `MARKETING_SERVICE_URL`, `COMMUNICATIONS_SERVICE_URL`, `AGENT_TOKENS` |
+| Communications | `TWILIO_*, SENDGRID_*, FIREBASE_*` |
 
 ---
 
