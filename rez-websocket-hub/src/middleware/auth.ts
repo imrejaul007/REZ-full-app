@@ -1,6 +1,9 @@
 import jwt from 'jsonwebtoken';
 import type { AuthenticatedUser, AuthenticatedRequest } from '../types/index.js';
 
+// RABTUL: Use centralized auth service
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'https://rez-auth-service.onrender.com';
+const INTERNAL_SERVICE_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || '';
 const JWT_SECRET = process.env.JWT_SECRET || 'rez-websocket-hub-secret-key-change-in-production';
 
 export class JWTAuthError extends Error {
@@ -14,6 +17,7 @@ export class JWTAuthError extends Error {
 }
 
 export function generateToken(user: { id: string; username: string; email?: string }): string {
+  // Generate token locally for WebSocket connections
   return jwt.sign(
     {
       id: user.id,
@@ -25,7 +29,33 @@ export function generateToken(user: { id: string; username: string; email?: stri
   );
 }
 
-export function verifyToken(token: string): AuthenticatedUser {
+export async function verifyToken(token: string): Promise<AuthenticatedUser> {
+  // RABTUL: Try auth service first for centralized verification
+  try {
+    const response = await fetch(`${AUTH_SERVICE_URL}/api/auth/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+      },
+      body: JSON.stringify({ token }),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success && result.user) {
+        return {
+          id: result.user.id,
+          username: result.user.phone || result.user.id,
+          role: result.user.role || 'user',
+        } as AuthenticatedUser;
+      }
+    }
+  } catch (error) {
+    console.warn('[WebSocket Auth] RABTUL auth service unavailable, using local verification');
+  }
+
+  // Fallback to local verification
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as AuthenticatedUser;
     return decoded;
@@ -53,22 +83,22 @@ export function extractTokenFromHeader(authHeader: string | undefined): string {
   return parts[1];
 }
 
-export function authenticateRequest(req: AuthenticatedRequest): AuthenticatedUser {
+export async function authenticateRequest(req: AuthenticatedRequest): Promise<AuthenticatedUser> {
   const token = extractTokenFromHeader(req.headers.authorization);
   return verifyToken(token);
 }
 
-export function wsAuthenticate(token: string): AuthenticatedUser {
+export async function wsAuthenticate(token: string): Promise<AuthenticatedUser> {
   return verifyToken(token);
 }
 
-export function authMiddleware(
+export async function authMiddleware(
   req: AuthenticatedRequest,
   res: { statusCode: number; end: (data?: string) => void },
   next: (err?: Error) => void
-): void {
+): Promise<void> {
   try {
-    const user = authenticateRequest(req);
+    const user = await authenticateRequest(req);
     req.user = user;
     next();
   } catch (error) {

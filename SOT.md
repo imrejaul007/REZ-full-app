@@ -22,6 +22,7 @@
 
 ### Production
 ```
+# RABTUL Core Services
 AUTH_SERVICE=https://rez-auth-service.onrender.com
 WALLET_SERVICE=https://rez-wallet-service.onrender.com
 PAYMENT_SERVICE=https://rez-payment-service.onrender.com
@@ -37,15 +38,23 @@ DECISION_SERVICE=https://rez-decision-service.onrender.com
 GAMIFICATION_SERVICE=https://rez-gamification-service.onrender.com
 AUTOMATION_SERVICE=https://rez-automation-service.onrender.com
 MEDIA_EVENTS=https://rez-media-events.onrender.com
+COMMUNICATIONS_SERVICE=https://rez-communications.onrender.com
 
 # REZ-Intelligence
 EVENT_PLATFORM=https://rez-event-platform.onrender.com
 INTELLIGENCE_HUB=https://rez-intelligence-hub.onrender.com
 INSIGHTS_SERVICE=https://rez-insights-service.onrender.com
+
+# Messaging Services
+NOTIFICATIONS_HUB=https://rez-notifications-hub.onrender.com
+NOTIFICATIONS_SERVICE=https://rez-notifications-service.onrender.com
+UNIFIED_MESSAGING=https://rez-unified-messaging.onrender.com
+UNIFIED_CHAT=https://rez-unified-chat.onrender.com
 ```
 
 ### Development (Local)
 ```
+# RABTUL Core Services
 AUTH_SERVICE=http://localhost:4002
 WALLET_SERVICE=http://localhost:4001
 PAYMENT_SERVICE=http://localhost:4003
@@ -61,6 +70,13 @@ DECISION_SERVICE=http://localhost:4027
 GAMIFICATION_SERVICE=http://localhost:3004
 AUTOMATION_SERVICE=http://localhost:4020
 MEDIA_EVENTS=http://localhost:3008
+COMMUNICATIONS_SERVICE=http://localhost:3009
+
+# Messaging Services
+NOTIFICATIONS_HUB=http://localhost:4009
+NOTIFICATIONS_SERVICE=http://localhost:4010
+UNIFIED_MESSAGING=http://localhost:4011
+UNIFIED_CHAT=http://localhost:4012
 ```
 
 ---
