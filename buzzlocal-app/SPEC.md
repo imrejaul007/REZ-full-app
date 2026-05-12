@@ -702,33 +702,32 @@ All events sent to `rez-analytics-service` and ReZ Mind:
 
 ---
 
-## 7. Milestones
+## 7. COMPLETED FEATURES
 
-### Phase 1: Core (MVP)
-- [ ] Onboarding flow
-- [ ] Home Feed with post types
-- [ ] Create post flow
-- [ ] Basic profile
-- [ ] Coin system integration
-- [ ] Connect to RABTUL auth + wallet
+### Phase 1: Core (MVP) ✅
+- [x] Onboarding flow
+- [x] Home Feed with post types
+- [x] Create post flow
+- [x] Basic profile
+- [x] Coin system integration
+- [x] Connect to RABTUL auth + wallet
 
-### Phase 2: Discovery
-- [ ] Explore/Search screen
-- [ ] Vibe Map (basic)
-- [ ] Event posts
-- [ ] Place discovery
+### Phase 2: Discovery ✅
+- [x] Explore/Search screen
+- [x] Vibe Map (Mapbox integration)
+- [x] Event discovery
+- [x] Place discovery
 
-### Phase 3: Social
-- [ ] Communities
-- [ ] User profiles
-- [ ] Follow system
-- [ ] Comments
+### Phase 3: Social ✅
+- [x] Communities
+- [x] QR Check-in
+- [x] Notifications
 
-### Phase 4: Gamification
-- [ ] Badges system
-- [ ] Streaks
-- [ ] Leaderboards
-- [ ] Creator dashboard
+### Phase 4: Gamification ✅
+- [x] Badges system
+- [x] Streaks
+- [x] Leaderboards
+- [x] Creator dashboard
 
 ### Phase 5: Intelligence
 - [ ] AI cards in feed
@@ -738,7 +737,91 @@ All events sent to `rez-analytics-service` and ReZ Mind:
 
 ---
 
-## 8. Environment Variables
+## 8. APP SCREENS
+
+| Screen | File | Description |
+|--------|------|-------------|
+| Home Feed | `app/(main)/index.tsx` | Feed with AI cards, posts, alerts |
+| Explore | `app/(main)/explore.tsx` | Search & discover |
+| Events | `app/(main)/events.tsx` | Event discovery |
+| Event Detail | `app/event/[id].tsx` | Event details, RSVP, tickets |
+| Create Event | `app/create-event.tsx` | Create new event |
+| Vibe Map | `app/(main)/vibe-map.tsx` | Real Mapbox map with crowd heatmap |
+| Communities | `app/(main)/communities.tsx` | Area/interest groups |
+| Community Detail | `app/community/[id].tsx` | Community posts, members |
+| Create Community | `app/create-community.tsx` | Create new community |
+| QR Check-in | `app/(main)/scan.tsx` | Camera-based check-in |
+| Profile | `app/(main)/profile.tsx` | Badges, streaks, stats |
+| Creator Dashboard | `app/creator.tsx` | Creator analytics & earnings |
+| Wallet | `app/wallet.tsx` | Coins & transactions |
+| Notifications | `app/notifications.tsx` | All notifications |
+| Create Post | `app/create.tsx` | 6 post types |
+| Search | `app/search.tsx` | Global search |
+
+---
+
+## 9. BACKEND SERVICES
+
+### Service List
+
+| Service | Port | Description |
+|---------|------|-------------|
+| buzzlocal-feed-service | 4000 | Posts, feed, AI cards, coin rewards |
+| buzzlocal-vibe-service | 4003 | Vibe areas, check-ins, crowd heatmap |
+| buzzlocal-community-service | 4004 | Communities, group posts |
+| z-events-service | 4008 | Events, ticketing, QR check-in |
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│ BuzzLocal App (React Native) │
+└─────────────────────┬───────────────────────────┘
+                      │
+     ┌────────────────┼────────────────┐
+     ▼                ▼                ▼        ▼
+┌─────────┐    ┌──────────┐   ┌──────────┐  ┌───────┐
+│  Feed   │    │   Vibe   │   │Community │  │Events │
+│  4000   │    │   4003   │   │  4004   │  │ 4008  │
+└────┬────┘    └────┬─────┘   └────┬─────┘  └───┬───┘
+     │                │              │            │
+     └────────────────┴──────┬──────┴────────────┘
+                              │
+                     ┌────────▼────────┐
+                     │   ReZ Mind   │
+                     │ (AI Training) │
+                     └──────────────┘
+```
+
+---
+
+## 10. DEPLOYMENT
+
+### Docker Compose
+
+```bash
+cd buzzlocal-services
+docker compose up -d
+```
+
+### Render
+
+```bash
+cd buzzlocal-services
+render deploy
+```
+
+### Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `deploy.sh` | Deploy all services |
+| `start-all.sh` | Start all services locally |
+| `status.sh` | Check service status |
+
+---
+
+## 11. Environment Variables
 
 ```env
 # API Base URLs

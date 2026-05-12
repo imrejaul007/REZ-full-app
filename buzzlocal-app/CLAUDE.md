@@ -2,46 +2,31 @@
 
 Hyperlocal social + discovery app for the ReZ ecosystem. Users find all local info (events, news, places, offers) and earn ReZ Coins for contributing.
 
+## Screens
+
+| Screen | File | Description |
+|--------|------|-------------|
+| Home Feed | `app/(main)/index.tsx` | Feed with AI cards, posts, alerts |
+| Explore | `app/(main)/explore.tsx` | Search & discover |
+| Events | `app/(main)/events.tsx` | Event discovery |
+| Vibe Map | `app/(main)/vibe-map.tsx` | Real Mapbox map with crowd heatmap |
+| Communities | `app/(main)/communities.tsx` | Area/interest groups |
+| QR Check-in | `app/(main)/scan.tsx` | Camera-based check-in |
+| Profile | `app/(main)/profile.tsx` | Badges, streaks, stats |
+| Creator | `app/creator.tsx` | Creator dashboard |
+| Wallet | `app/wallet.tsx` | Coins & transactions |
+| Notifications | `app/notifications.tsx` | All notifications |
+| Create Post | `app/create.tsx` | 6 post types |
+
 ## Tech Stack
 
-- **Framework**: React Native (Expo SDK 53)
-- **Language**: TypeScript
-- **Navigation**: Expo Router (file-based)
-- **State**: Zustand
-- **HTTP**: Axios
-- **Maps**: react-native-maps
-- **Animations**: react-native-reanimated
-
-## Project Structure
-
-```
-buzzlocal-app/
-├── app/                    # Expo Router pages
-│   ├── (auth)/            # Onboarding screens
-│   ├── (main)/            # Main app screens
-│   ├── _layout.tsx        # Root layout
-│   ├── create.tsx         # Create post
-│   ├── creator.tsx         # Creator dashboard
-│   ├── search.tsx         # Search
-│   └── wallet.tsx          # Wallet
-│
-├── src/
-│   ├── components/        # UI components
-│   │   ├── ui/           # Base components
-│   │   └── feed/         # Feed components
-│   ├── services/          # API services
-│   │   ├── api.ts        # Axios instances
-│   │   ├── auth.ts       # Auth service
-│   │   ├── wallet.ts     # Wallet service
-│   │   ├── feed.ts       # Feed service
-│   │   ├── gamification.ts
-│   │   └── analytics.ts  # Data collection
-│   ├── store/            # Zustand stores
-│   └── types/            # TypeScript types
-│
-├── constants/             # Theme, config
-└── SPEC.md               # Full specification
-```
+- **Framework:** React Native (Expo SDK 53)
+- **Language:** TypeScript
+- **Navigation:** Expo Router (file-based)
+- **State:** Zustand
+- **HTTP:** Axios
+- **Maps:** react-native-maps with Mapbox
+- **Animations:** react-native-reanimated
 
 ## Build Commands
 
@@ -50,45 +35,69 @@ npm install              # Install dependencies
 npx expo prebuild       # Generate native projects
 npx expo run:android    # Run on Android
 npx expo run:ios        # Run on iOS
-npx expo start          # Start Expo DevTools
+npx expo start           # Start Expo DevTools
 ```
 
-## RABTUL Services Used
+## API Services
+
+| Service | File | Purpose |
+|---------|------|---------|
+| Auth | `src/services/auth.ts` | Login, OTP |
+| Wallet | `src/services/wallet.ts` | Coins, transactions |
+| Feed | `src/services/feed.ts` | Posts, feed |
+| Events | `src/services/events.ts` | Event discovery |
+| Gamification | `src/services/gamification.ts` | Badges, streaks |
+| Analytics | `src/services/analytics.ts` | Data collection |
+
+## Backend Services (from `buzzlocal-services/`)
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| buzzlocal-feed-service | 4000 | Posts, feed, AI cards |
+| buzzlocal-vibe-service | 4003 | Check-ins, Vibe Map |
+| buzzlocal-community-service | 4004 | Communities |
+| z-events-service | 4008 | Events, ticketing |
+
+## Reused from RABTUL
 
 | Service | Purpose |
 |---------|---------|
-| `rez-auth-service` | Login, OTP, accounts |
-| `rez-wallet-service` | ReZ Coins, transactions |
+| `rez-auth-service` | Login, OTP |
+| `rez-wallet-service` | Coins, transactions |
 | `rez-gamification-service` | Badges, streaks |
-| `rez-creator-earnings-service` | Creator payouts |
 
 ## Data Collection
 
-All user actions are tracked and sent to:
-- `rez-analytics-service` - Event tracking
-- `rez-mind` - AI training data
+All user actions are tracked and sent to ReZ Mind for AI training:
 
-Key signals collected:
-- Location & movement (check-ins, searches)
-- Intent (searches, saves, views)
-- Commerce (offer views, redemptions)
-- Social (follows, shares)
+```
+check_in, check_out, post_view, post_like, post_save
+event_view, event_rsvp, offer_view, community_join
+```
 
-## Design System
+## State Management
 
-Colors, spacing, and typography defined in `constants/theme.ts`.
+Uses Zustand stores in `src/store/`:
+- `authStore` - User, auth state
+- `feedStore` - Feed items, post actions
+- `locationStore` - Location, nearby areas
+- `gamificationStore` - Badges, streaks, leaderboards
+- `walletStore` - Balance, transactions
 
-See `SPEC.md` for full design system documentation.
+## Theme
+
+Colors, spacing, typography in `constants/theme.ts`.
 
 ## Security
 
-- Never commit `.env` files
+- NEVER commit `.env` files
 - Store tokens in SecureStore
 - Validate all API responses
 - Sanitize user inputs
+- Verify all auth tokens
 
 ## Related
 
+- [buzzlocal-services](../buzzlocal-services/) - Backend services
 - [REZ-Consumer](../REZ-Consumer/) - Main consumer app
-- [rez-karma-mobile](../rez-karma-mobile/) - Gamification app
-- [RABTUL-Technologies](../RABTUL-Technologies/) - Backend services
+- [RABTUL-Technologies](../RABTUL-Technologies/) - Other services
