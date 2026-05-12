@@ -1,13 +1,20 @@
 import { Router, Request, Response } from 'express';
 import mongoose from 'mongoose';
-import * as crypto from 'crypto';
-import Razorpay from 'razorpay';
 import { logger } from '../config/logger';
 import { authMiddleware } from '../middleware/merchantauth';
 import { asyncHandler } from '../utils/asyncHandler';
 import { Merchant } from '../models/Merchant';
 import { MerchantPlan } from '../models/MerchantPlan';
 import { createRateLimiter } from '../middleware/rateLimiter';
+
+/**
+ * RABTUL Payment Service Configuration
+ * Migrated from Razorpay to centralized RABTUL Payment Service
+ */
+import { createRazorpayOrder } from '../config/razorpay.config';
+
+const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || 'https://rez-payment-service.onrender.com';
+const INTERNAL_SERVICE_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || '';
 
 // 10 upgrade attempts per hour per merchant
 const subscriptionLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 10, prefix: 'merchant-subscription' });
@@ -17,21 +24,14 @@ const router = Router();
 // All routes require merchant authentication
 router.use(authMiddleware);
 
-// Initialize Razorpay (lazily — only if keys are present)
-const razorpayKeyId = process.env.RAZORPAY_KEY_ID || '';
-const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || '';
-const isRazorpayConfigured = !!(razorpayKeyId && razorpayKeySecret);
+// Check if RABTUL Payment Service is configured
+const isPaymentServiceConfigured = !!INTERNAL_SERVICE_TOKEN;
 
-if (!isRazorpayConfigured) {
+if (!isPaymentServiceConfigured) {
   logger.warn(
-    '[MERCHANT SUBSCRIPTION] RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET not configured — payment features will be disabled',
+    '[MERCHANT SUBSCRIPTION] INTERNAL_SERVICE_TOKEN not configured - payment features will be disabled',
   );
 }
-
-const razorpay = new Razorpay({
-  key_id: razorpayKeyId,
-  key_secret: razorpayKeySecret,
-});
 
 /**
  * @route   GET /api/merchant/subscription
@@ -128,7 +128,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     res.json(response);
   } catch (error: any) {
-    logger.error('❌ [MERCHANT SUBSCRIPTION] Error fetching subscription:', error);
+    logger.error('[MERCHANT SUBSCRIPTION] Error fetching subscription:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to fetch subscription',
@@ -159,7 +159,7 @@ router.get(
 
 /**
  * @route   POST /api/merchant/subscription/upgrade
- * @desc    Initiate upgrade by creating Razorpay order
+ * @desc    Initiate upgrade by creating payment order via RABTUL Payment Service
  * @access  Private (Merchant)
  */
 router.post(
@@ -185,7 +185,7 @@ router.post(
       });
     }
 
-    // Skip Razorpay order creation for starter plan (free)
+    // Skip payment for starter plan (free)
     if (plan.monthlyPrice === 0) {
       return res.status(400).json({
         success: false,
@@ -193,7 +193,7 @@ router.post(
       });
     }
 
-    if (!isRazorpayConfigured) {
+    if (!isPaymentServiceConfigured) {
       return res.status(503).json({
         success: false,
         message: 'Payment service not configured. Please contact support.',
@@ -201,35 +201,41 @@ router.post(
     }
 
     try {
-      // Create Razorpay order with timeout protection
-      const amountInPaise = plan.monthlyPrice * 100;
+      // Create payment order via RABTUL Payment Service
+      const orderData = {
+        amount: plan.monthlyPrice * 100, // Amount in paise
+        currency: 'INR',
+        receipt: `order_${merchantId}_${Date.now()}`,
+        notes: {
+          planName,
+          storeId,
+          merchantId,
+          type: 'subscription',
+        },
+        merchantId,
+        orderId: `subscription_${merchantId}_${Date.now()}`,
+      };
+
+      // Use timeout protection
       const order = await Promise.race([
-        razorpay.orders.create({
-          amount: amountInPaise,
-          currency: 'INR',
-          receipt: `order_${merchantId}_${Date.now()}`,
-          notes: {
-            planName,
-            storeId,
-            merchantId,
-          },
-        }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Razorpay timeout')), 10000)),
+        createRazorpayOrder(orderData),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Payment service timeout')), 10000)),
       ]);
 
       res.json({
         success: true,
         data: {
-          razorpayOrderId: (order as any).id,
+          razorpayOrderId: order.paymentId || order.id,
           amount: plan.monthlyPrice,
-          amountInPaise,
+          amountInPaise: plan.monthlyPrice * 100,
           currency: 'INR',
-          keyId: process.env.RAZORPAY_KEY_ID,
+          keyId: 'RABTUL_PAYMENT_SERVICE',
           planName,
+          checkoutUrl: order.checkoutUrl || `${PAYMENT_SERVICE_URL}/checkout/${order.paymentId || order.id}`,
         },
       });
     } catch (error: any) {
-      logger.error('Error creating Razorpay order:', error);
+      logger.error('[MERCHANT SUBSCRIPTION] Error creating payment order:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to create payment order',
@@ -241,27 +247,27 @@ router.post(
 
 /**
  * @route   POST /api/merchant/subscription/verify-payment
- * @desc    Verify Razorpay payment and update merchant subscription
+ * @desc    Verify payment via RABTUL Payment Service and update merchant subscription
  * @access  Private (Merchant)
  */
 router.post(
   '/verify-payment',
   asyncHandler(async (req: Request, res: Response) => {
     const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
+      payment_id,
+      order_id,
+      signature,
       planName,
     } = req.body;
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !planName) {
+    if (!order_id || !payment_id || !signature || !planName) {
       return res.status(400).json({
         success: false,
         message: 'All payment verification fields are required',
       });
     }
 
-    // Always use auth-verified merchantId — never trust body
+    // Always use auth-verified merchantId - never trust body
     const merchantId = req.merchantId;
     if (!merchantId) {
       return res.status(400).json({
@@ -271,14 +277,31 @@ router.post(
     }
 
     try {
-      // Verify Razorpay signature using timingSafeEqual
-      const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '');
-      hmac.update(`${razorpay_order_id}|${razorpay_payment_id}`);
-      const generatedSignature = hmac.digest('hex');
+      // Verify payment with RABTUL Payment Service
+      const verifyResponse = await fetch(`${PAYMENT_SERVICE_URL}/api/payments/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+        },
+        body: JSON.stringify({
+          paymentId: payment_id,
+          orderId: order_id,
+          signature,
+        }),
+      });
 
-      const isValid = crypto.timingSafeEqual(Buffer.from(razorpay_signature), Buffer.from(generatedSignature));
+      if (!verifyResponse.ok) {
+        const errorData = await verifyResponse.json().catch(() => ({}));
+        return res.status(400).json({
+          success: false,
+          message: errorData.message || 'Payment verification failed',
+        });
+      }
 
-      if (!isValid) {
+      const verifyResult = await verifyResponse.json();
+
+      if (!verifyResult.verified) {
         return res.status(400).json({
           success: false,
           message: 'Payment verification failed',
@@ -314,7 +337,7 @@ router.post(
         },
       });
     } catch (error: any) {
-      logger.error('Error verifying payment:', error);
+      logger.error('[MERCHANT SUBSCRIPTION] Error verifying payment:', error);
       res.status(500).json({
         success: false,
         message: 'Payment verification failed',

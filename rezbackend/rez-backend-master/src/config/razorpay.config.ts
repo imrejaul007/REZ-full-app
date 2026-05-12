@@ -1,49 +1,108 @@
 // @ts-nocheck
-import Razorpay from 'razorpay';
-import { logger } from './logger';
-
 /**
- * Razorpay Payment Gateway Configuration
+ * RABTUL Payment Service Configuration
  *
- * To get your keys:
- * 1. Sign up at https://razorpay.com
- * 2. Go to Dashboard → Settings → API Keys
- * 3. Generate Test Keys (for development)
- * 4. Generate Live Keys (for production)
+ * This file has been migrated from Razorpay to RABTUL Payment Service.
+ * All payment operations now use the centralized RABTUL Payment Service API.
  *
- * Add to your .env file:
- * RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxxx
- * RAZORPAY_KEY_SECRET=xxxxxxxxxxxxx
+ * Environment variables:
+ * PAYMENT_SERVICE_URL - URL of the RABTUL Payment Service (default: https://rez-payment-service.onrender.com)
+ * INTERNAL_SERVICE_TOKEN - Token for service-to-service authentication
  */
 
-if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-  logger.warn('[Razorpay] Missing credentials — payment features will fail');
+import { logger } from './logger';
+
+// RABTUL Payment Service configuration
+export const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || 'https://rez-payment-service.onrender.com';
+export const INTERNAL_SERVICE_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || '';
+
+if (!INTERNAL_SERVICE_TOKEN) {
+  logger.warn('[RABTUL Payment] Missing INTERNAL_SERVICE_TOKEN - payment features may fail');
 }
 
-export const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
-});
+/**
+ * Creates a payment order via RABTUL Payment Service
+ * @param orderData - Order data for payment initiation
+ * @returns Payment order response from RABTUL Payment Service
+ */
+export async function createRazorpayOrder(orderData: {
+  amount: number;
+  currency?: string;
+  receipt?: string;
+  notes?: Record<string, any>;
+  merchantId?: string;
+  orderId?: string;
+}): Promise<any> {
+  const response = await fetch(`${PAYMENT_SERVICE_URL}/api/payments/initiate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+    },
+    body: JSON.stringify(orderData),
+  });
 
-export const isLiveMode = (): boolean => (process.env.RAZORPAY_KEY_ID || '').startsWith('rzp_live_');
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`RABTUL Payment Service error: ${response.status} - ${error}`);
+  }
 
-export const getWebhookSecret = (): string => process.env.RAZORPAY_WEBHOOK_SECRET || '';
+  return response.json();
+}
+
+/**
+ * Fetches payment/order status from RABTUL Payment Service
+ * @param orderId - The order/payment ID to fetch
+ * @returns Payment status from RABTUL Payment Service
+ */
+export async function fetchRazorpayOrder(orderId: string): Promise<any> {
+  const response = await fetch(`${PAYMENT_SERVICE_URL}/api/payments/status/${orderId}`, {
+    method: 'GET',
+    headers: {
+      'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`RABTUL Payment Service error: ${response.status} - ${error}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetches payments for an order from RABTUL Payment Service
+ * @param orderId - The order ID to fetch payments for
+ * @returns Payments list from RABTUL Payment Service
+ */
+export async function fetchRazorpayOrderPayments(orderId: string): Promise<any> {
+  const response = await fetch(`${PAYMENT_SERVICE_URL}/api/payments/${orderId}/payments`, {
+    method: 'GET',
+    headers: {
+      'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`RABTUL Payment Service error: ${response.status} - ${error}`);
+  }
+
+  return response.json();
+}
+
+// Legacy export for compatibility - returns null since we use RABTUL Payment Service
+export const razorpay = null;
+
+export const isLiveMode = (): boolean => process.env.NODE_ENV === 'production';
+
+export const getWebhookSecret = (): string => process.env.RABTUL_WEBHOOK_SECRET || '';
 
 export const razorpayConfig = {
-  keyId:
-    process.env.RAZORPAY_KEY_ID ||
-    ((process.env.NODE_ENV === 'production'
-      ? (() => {
-          throw new Error('RAZORPAY_KEY_ID is required in production');
-        })()
-      : 'rzp_test_dummy_key') as string),
-  keySecret:
-    process.env.RAZORPAY_KEY_SECRET ||
-    ((process.env.NODE_ENV === 'production'
-      ? (() => {
-          throw new Error('RAZORPAY_KEY_SECRET is required in production');
-        })()
-      : 'dummy_secret') as string),
+  // RABTUL Payment Service uses internal tokens instead of API keys
+  keyId: process.env.INTERNAL_SERVICE_TOKEN ? 'RABTUL_PAYMENT_SERVICE' : '',
+  keySecret: process.env.INTERNAL_SERVICE_TOKEN ? 'configured' : '',
 
   // Currency
   currency: 'INR',
@@ -57,7 +116,7 @@ export const razorpayConfig = {
     netbanking: true,
     upi: true,
     wallet: true,
-    emi: false, // Disable EMI for now
+    emi: false,
   },
 
   // Checkout options
@@ -68,30 +127,27 @@ export const razorpayConfig = {
       process.env.APP_LOGO_URL ||
       `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/rez-logo.png`,
     theme: {
-      color: '#8B5CF6', // Purple theme
+      color: '#8B5CF6',
     },
   },
+
+  // RABTUL Payment Service endpoint
+  paymentServiceUrl: PAYMENT_SERVICE_URL,
 
   // Test mode flag
   isTestMode: process.env.NODE_ENV !== 'production',
 };
 
-// Helper to validate Razorpay configuration
+// Helper to validate RABTUL Payment Service configuration
 export function validateRazorpayConfig(): boolean {
-  const { keyId, keySecret } = razorpayConfig;
-
-  if (!keyId || keyId === 'rzp_test_dummy_key') {
-    logger.warn('⚠️  [RAZORPAY] Key ID not configured. Add RAZORPAY_KEY_ID to .env');
+  if (!INTERNAL_SERVICE_TOKEN) {
+    logger.warn('[RABTUL Payment] INTERNAL_SERVICE_TOKEN not configured. Add INTERNAL_SERVICE_TOKEN to .env');
     return false;
   }
 
-  if (!keySecret || keySecret === 'dummy_secret') {
-    logger.warn('⚠️  [RAZORPAY] Key Secret not configured. Add RAZORPAY_KEY_SECRET to .env');
-    return false;
-  }
-
-  logger.info('✅ [RAZORPAY] Configuration validated');
-  logger.info(`🔧 [RAZORPAY] Mode: ${razorpayConfig.isTestMode ? 'TEST' : 'PRODUCTION'}`);
+  logger.info('[RABTUL Payment] Configuration validated');
+  logger.info(`[RABTUL Payment] Payment Service URL: ${PAYMENT_SERVICE_URL}`);
+  logger.info(`[RABTUL Payment] Mode: ${razorpayConfig.isTestMode ? 'TEST' : 'PRODUCTION'}`);
 
   return true;
 }

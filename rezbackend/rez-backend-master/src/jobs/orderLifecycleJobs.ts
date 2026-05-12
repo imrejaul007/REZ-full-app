@@ -1,15 +1,15 @@
 /**
  * Order Lifecycle Background Jobs
  *
- * 1. Stuck Order Detection — every 10 minutes
- * 2. Payment Verification Recovery — every 15 minutes
- * 3. Return Window Logging — daily at midnight
+ * 1. Stuck Order Detection - every 10 minutes
+ * 2. Payment Verification Recovery - every 15 minutes
+ * 3. Return Window Logging - daily at midnight
+ *
+ * MIGRATED: All Razorpay API calls replaced with RABTUL Payment Service calls
  */
 
 // DB-AUDIT-3 FIX: Import scheduleCronJob from cronJobs so all tasks are registered
 // in the activeCronJobs registry and stopped cleanly on SIGTERM/SIGINT.
-// Previously all 5 jobs here used raw cron.schedule() which bypassed the shutdown
-// registry, keeping the process alive after graceful shutdown signals.
 import { scheduleCronJob } from '../config/cronJobs';
 import { Order } from '../models/Order';
 import { Product } from '../models/Product';
@@ -20,19 +20,60 @@ import { runOrderAlertChecks } from '../utils/orderAlerts';
 import redisService from '../services/redisService';
 import { logger } from '../config/logger';
 // HIGH 4 FIX: All order cancellations now go through the canonical cancelOrderCore
-// function which guarantees: status change → stock restore → refund → cashback
-// reversal → notification. Previously this job used a bare findByIdAndUpdate that
-// skipped all of those post-cancel steps.
 import { cancelOrderCore } from '../services/cancelOrderService';
 
-// Note: raw 'cron' import removed — all scheduling now goes through scheduleCronJob()
+/**
+ * RABTUL Payment Service Configuration
+ * Migrated from Razorpay to centralized RABTUL Payment Service
+ */
+const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || 'https://rez-payment-service.onrender.com';
+const INTERNAL_SERVICE_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || '';
+
+/**
+ * Fetches order status from RABTUL Payment Service
+ */
+async function fetchOrderStatus(gatewayOrderId: string): Promise<any> {
+  const response = await fetch(`${PAYMENT_SERVICE_URL}/api/payments/status/${gatewayOrderId}`, {
+    method: 'GET',
+    headers: {
+      'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`RABTUL Payment Service error: ${response.status} - ${error}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetches payments for an order from RABTUL Payment Service
+ */
+async function fetchOrderPayments(gatewayOrderId: string): Promise<any[]> {
+  const response = await fetch(`${PAYMENT_SERVICE_URL}/api/payments/${gatewayOrderId}/payments`, {
+    method: 'GET',
+    headers: {
+      'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`RABTUL Payment Service error: ${response.status} - ${error}`);
+  }
+
+  const data = await response.json();
+  return data.items || data.payments || [];
+}
 
 /**
  * Stuck Order Detection
  *
- * - placed + unpaid online orders > 1 hour → auto-cancel, restore stock
- * - confirmed/preparing > 2 hours → admin alert
- * - dispatched > 3 hours → merchant + admin alert
+ * - placed + unpaid online orders > 1 hour -> auto-cancel, restore stock
+ * - confirmed/preparing > 2 hours -> admin alert
+ * - dispatched > 3 hours -> merchant + admin alert
  */
 async function runStuckOrderDetection(): Promise<void> {
   const lockKey = 'job:order-lifecycle';
@@ -185,16 +226,10 @@ async function runStuckOrderDetection(): Promise<void> {
  * Payment Verification Recovery
  *
  * Finds orders with pending payment + gateway order ID but >30 min old,
- * checks with Razorpay for actual payment status, and recovers if paid.
+ * checks with RABTUL Payment Service for actual payment status, and recovers if paid.
  */
 async function runPaymentVerificationRecovery(): Promise<void> {
-  // LF-002 FIX: runPaymentVerificationRecovery, runStuckOrderDetection, and
-  // runReturnWindowCheck all used the SAME Redis lock key ('job:order-lifecycle').
-  // When the stuck-order job runs and holds the lock for its 5-minute TTL, the
-  // payment-recovery job is silently skipped — leaving paid orders stuck in
-  // 'payment.status: processing' with no recovery for up to 5 minutes. Worse,
-  // if the three jobs overlap in a cron window all three contend on the same key.
-  // Each job gets its own unique lock key so they run independently.
+  // LF-002 FIX: Each job gets its own unique lock key so they run independently.
   const lockKey = 'job:payment-verification-recovery';
   const lockToken = await redisService.acquireLock(lockKey, 300);
   if (!lockToken) {
@@ -208,9 +243,7 @@ async function runPaymentVerificationRecovery(): Promise<void> {
     const thirtyMinAgo = new Date(now.getTime() - 30 * 60 * 1000);
     const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 
-    // LF-001 FIX (companion): after the orderCreateController fix, online orders
-    // are created with payment.status='processing' instead of 'awaiting_payment'.
-    // Query must match 'processing' so recovery can find them.
+    // LF-001 FIX (companion): query must match 'processing' so recovery can find them.
     const pendingPaymentOrders = await Order.find({
       status: 'placed',
       'payment.status': { $in: ['pending', 'processing'] },
@@ -223,44 +256,25 @@ async function runPaymentVerificationRecovery(): Promise<void> {
     let recovered = 0;
     let autoCancelled = 0;
 
+    // Check if RABTUL Payment Service is configured
+    const isPaymentServiceConfigured = !!INTERNAL_SERVICE_TOKEN;
+
     for (const order of pendingPaymentOrders) {
       try {
         const gatewayOrderId = order.paymentGateway?.gatewayOrderId;
         if (!gatewayOrderId) continue;
 
-        // WS-D005 FIX: The old code called razorpay.orders.fetch(gatewayOrderId) and
-        // checked rzpOrder.status === 'paid'.  This is wrong for two reasons:
-        //
-        //   1. In MANUAL CAPTURE flows the Razorpay *order* status stays 'created'
-        //      even after payment.authorized fires, so the job silently skips recovery.
-        //
-        //   2. The Razorpay order object does not tell us WHICH payment was captured,
-        //      what amount was captured, or the payment ID needed to call
-        //      handlePaymentSuccess (which deducts stock, awards coins, credits the
-        //      merchant wallet). The old code only set payment.status='paid' without
-        //      completing the full post-payment flow, leaving a half-recovered order.
-        //
-        // FIX: Use razorpay.orders.fetchPayments(gatewayOrderId) to get the list of
-        // actual payment objects against this order.  Find the one with status='captured'.
-        // Then call paymentService.handlePaymentSuccess with the captured payment details
-        // so the FULL post-payment pipeline runs (stock deduction, coin award, merchant
-        // wallet credit, socket notification) — identical to what a live webhook would do.
+        // MIGRATED: Use RABTUL Payment Service instead of Razorpay
         try {
-          if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-            logger.warn('[ORDER LIFECYCLE] Razorpay keys not configured — skipping payment recovery for order', {
+          if (!isPaymentServiceConfigured) {
+            logger.warn('[ORDER LIFECYCLE] Payment service not configured — skipping payment recovery for order', {
               orderId: String(order._id),
             });
             continue;
           }
-          const Razorpay = require('razorpay');
-          const razorpay = new Razorpay({
-            key_id: process.env.RAZORPAY_KEY_ID,
-            key_secret: process.env.RAZORPAY_KEY_SECRET,
-          });
 
-          // Fetch all payments against the Razorpay order
-          const paymentsResponse = await razorpay.orders.fetchPayments(gatewayOrderId);
-          const payments: any[] = paymentsResponse?.items ?? [];
+          // Fetch all payments against the order from RABTUL Payment Service
+          const payments = await fetchOrderPayments(gatewayOrderId);
 
           // Find the captured payment (there should be at most one)
           const capturedPayment = payments.find((p: any) => p.status === 'captured');
@@ -270,18 +284,18 @@ async function runPaymentVerificationRecovery(): Promise<void> {
               `[ORDER LIFECYCLE] Found captured payment ${capturedPayment.id} for order ${order.orderNumber} — running full recovery`,
             );
 
-            // Validate amount before recovery: captured amount (paise) vs order total
-            const capturedPaise = capturedPayment.amount;
-            const orderTotalPaise = Math.round((order.totals?.total ?? 0) * 100);
+            // Validate amount before recovery: captured amount vs order total
+            const capturedAmount = capturedPayment.amount;
+            const orderTotal = Math.round((order.totals?.total ?? 0) * 100);
 
-            if (capturedPaise !== orderTotalPaise) {
+            if (capturedAmount !== orderTotal) {
               logger.error(
-                `[ORDER LIFECYCLE] Amount mismatch during recovery — captured ${capturedPaise}p, order total ${orderTotalPaise}p — flagging for manual review`,
+                `[ORDER LIFECYCLE] Amount mismatch during recovery — captured ${capturedAmount}, order total ${orderTotal} — flagging for manual review`,
                 {
                   orderId: String(order._id),
                   orderNumber: order.orderNumber,
-                  capturedPaise,
-                  orderTotalPaise,
+                  capturedAmount,
+                  orderTotal,
                 },
               );
               // Flag but do not recover — amount mismatch requires human review
@@ -290,7 +304,7 @@ async function runPaymentVerificationRecovery(): Promise<void> {
                   flags: 'recovery_amount_mismatch',
                   timeline: {
                     status: order.status,
-                    message: `Recovery skipped: captured ${capturedPaise}p but order total is ${orderTotalPaise}p`,
+                    message: `Recovery skipped: captured ${capturedAmount} but order total is ${orderTotal}`,
                     timestamp: now,
                     updatedBy: 'system',
                   },
@@ -299,10 +313,7 @@ async function runPaymentVerificationRecovery(): Promise<void> {
               continue;
             }
 
-            // Run the FULL post-payment pipeline via paymentService.handlePaymentSuccess.
-            // This deducts stock, awards coins, credits the merchant wallet, and sends
-            // socket notifications — identical to what handleRazorpayPaymentCaptured does
-            // when a live webhook arrives. Without this the order is only half-recovered.
+            // Run the FULL post-payment pipeline via paymentService.handlePaymentSuccess
             try {
               await paymentService.handlePaymentSuccess(String(order._id), {
                 razorpay_payment_id: capturedPayment.id,
@@ -326,7 +337,6 @@ async function runPaymentVerificationRecovery(): Promise<void> {
             }
           } else {
             // No captured payment found — check if there is an authorized payment
-            // (manual capture pending). Log for observability but take no action.
             const authorizedPayment = payments.find((p: any) => p.status === 'authorized');
             if (authorizedPayment) {
               logger.info(
@@ -341,7 +351,7 @@ async function runPaymentVerificationRecovery(): Promise<void> {
         } catch (gatewayErr: any) {
           // Gateway API call failed — log and continue; will retry next cycle
           logger.error(
-            `[ORDER LIFECYCLE] Razorpay API call failed for order ${order.orderNumber}:`,
+            `[ORDER LIFECYCLE] Payment service API call failed for order ${order.orderNumber}:`,
             gatewayErr?.message,
           );
         }
@@ -351,12 +361,7 @@ async function runPaymentVerificationRecovery(): Promise<void> {
     }
 
     // Auto-cancel orders pending payment for > 2 hours.
-    // WS-D006 FIX: Before cancelling, do a final Razorpay payment check.
-    // Without this check, an order whose payment was captured but whose webhook
-    // was lost AND whose recovery-loop Razorpay API call failed (gateway timeout)
-    // could age past 2 hours and get incorrectly cancelled — even though the customer
-    // was charged. The safe approach is: try the API one more time; only if the API
-    // confirms no captured payment (or the API is unreachable) do we cancel.
+    // WS-D006 FIX: Before cancelling, do a final payment service check.
     // LF-001 FIX (companion): include 'processing' for orders created after the enum fix.
     const expiredPaymentOrders = await Order.find({
       status: 'placed',
@@ -367,41 +372,35 @@ async function runPaymentVerificationRecovery(): Promise<void> {
       .select('_id orderNumber items paymentGateway totals')
       .lean();
 
-    // Separate orders into those we can verify with Razorpay vs those we cannot
+    // Separate orders into those we can verify with payment service vs those we cannot
     const confirmedUnpaidOrders: typeof expiredPaymentOrders = [];
     const skippedDueToApiError: string[] = [];
 
     for (const order of expiredPaymentOrders) {
       const gatewayOrderId = order.paymentGateway?.gatewayOrderId;
       if (!gatewayOrderId) {
-        // No gateway order ID stored — this order was never submitted to Razorpay; safe to cancel
+        // No gateway order ID stored — this order was never submitted to payment service; safe to cancel
         confirmedUnpaidOrders.push(order);
         continue;
       }
 
       try {
-        if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+        if (!isPaymentServiceConfigured) {
           logger.warn(
-            '[ORDER LIFECYCLE] Razorpay keys not configured — cannot verify payment status, skipping auto-cancel for order',
+            '[ORDER LIFECYCLE] Payment service not configured — cannot verify payment status, skipping auto-cancel for order',
             { orderId: String(order._id) },
           );
           skippedDueToApiError.push(String(order._id));
           continue;
         }
-        const Razorpay = require('razorpay');
-        const razorpay = new Razorpay({
-          key_id: process.env.RAZORPAY_KEY_ID,
-          key_secret: process.env.RAZORPAY_KEY_SECRET,
-        });
 
-        const paymentsResponse = await razorpay.orders.fetchPayments(gatewayOrderId);
-        const payments: any[] = paymentsResponse?.items ?? [];
+        const payments = await fetchOrderPayments(gatewayOrderId);
         const capturedPayment = payments.find((p: any) => p.status === 'captured');
 
         if (capturedPayment) {
           // Payment was captured — recover instead of cancel
           logger.warn(
-            `[ORDER LIFECYCLE] Auto-cancel BLOCKED for order ${order.orderNumber}: Razorpay shows captured payment ${capturedPayment.id} — recovering instead`,
+            `[ORDER LIFECYCLE] Auto-cancel BLOCKED for order ${order.orderNumber}: captured payment ${capturedPayment.id} — recovering instead`,
           );
           try {
             await paymentService.handlePaymentSuccess(String(order._id), {
@@ -426,9 +425,9 @@ async function runPaymentVerificationRecovery(): Promise<void> {
           confirmedUnpaidOrders.push(order);
         }
       } catch (gatewayCheckErr: any) {
-        // Razorpay API unreachable — do NOT cancel; defer to next job run
+        // Payment service API unreachable — do NOT cancel; defer to next job run
         logger.error(
-          `[ORDER LIFECYCLE] Auto-cancel deferred for ${order.orderNumber}: Razorpay API error — will retry next cycle`,
+          `[ORDER LIFECYCLE] Auto-cancel deferred for ${order.orderNumber}: Payment service API error — will retry next cycle`,
           gatewayCheckErr?.message,
         );
         skippedDueToApiError.push(order.orderNumber);
@@ -437,7 +436,7 @@ async function runPaymentVerificationRecovery(): Promise<void> {
 
     if (skippedDueToApiError.length > 0) {
       logger.warn(
-        `[ORDER LIFECYCLE] ${skippedDueToApiError.length} orders deferred from auto-cancel due to Razorpay API errors: ${skippedDueToApiError.join(', ')}`,
+        `[ORDER LIFECYCLE] ${skippedDueToApiError.length} orders deferred from auto-cancel due to Payment service API errors: ${skippedDueToApiError.join(', ')}`,
       );
     }
 
@@ -451,10 +450,7 @@ async function runPaymentVerificationRecovery(): Promise<void> {
     }
 
     // BUG-48 FIX: For unpaid/expired orders we must release the reservedStock that was
-    // held at order placement, NOT increment the available stock field.  Incrementing
-    // 'inventory.stock' double-counts those units because they were never physically
-    // removed from stock — they were only reserved.  Using a negative $inc on
-    // 'inventory.reservedStock' correctly unwinds the reservation.
+    // held at order placement, NOT increment the available stock field.
     if (stockIncrements.size > 0) {
       const bulkOps = Array.from(stockIncrements.entries()).map(([productId, qty]) => ({
         updateOne: {
@@ -470,17 +466,15 @@ async function runPaymentVerificationRecovery(): Promise<void> {
     }
 
     // HIGH 4 FIX: Use canonical cancelOrderCore so that stock restore, refunds, and
-    // cashback reversal happen consistently — previously this was a bare findByIdAndUpdate
-    // that only updated the status field and skipped all post-cancel side-effects.
-    // skipRefund=true because these orders never had a successful payment captured;
-    // there is no money to return to the user's wallet.
+    // cashback reversal happen consistently.
+    // skipRefund=true because these orders never had a successful payment captured.
     for (const order of confirmedUnpaidOrders) {
       try {
         await cancelOrderCore({
           orderId: order._id.toString(),
           reason: 'Auto-cancelled: payment not received within 2 hours',
           cancelledBy: 'system',
-          skipRefund: true, // Payment was never captured — no wallet refund needed
+          skipRefund: true,
         });
         autoCancelled++;
       } catch (err) {
@@ -505,8 +499,7 @@ async function runPaymentVerificationRecovery(): Promise<void> {
  * No action needed since the model method already checks timestamp.
  */
 async function runReturnWindowCheck(): Promise<void> {
-  // LF-002 FIX (companion): unique lock key so this job doesn't collide with
-  // runStuckOrderDetection or runPaymentVerificationRecovery.
+  // LF-002 FIX (companion): unique lock key so this job doesn't collide with others.
   const lockKey = 'job:return-window-check';
   const lockToken = await redisService.acquireLock(lockKey, 300);
   if (!lockToken) {
@@ -540,11 +533,9 @@ async function runReturnWindowCheck(): Promise<void> {
  * Stale Processing Order Sweeper
  *
  * Finds orders stuck in status='placed' with payment.status='processing' for
- * more than 30 minutes (i.e. the payment gateway never confirmed or denied them)
- * and releases their reservedStock, then marks them cancelled/expired.
+ * more than 30 minutes and releases their reservedStock, then marks them cancelled/expired.
  *
- * This prevents reserved stock from leaking when a gateway session dies mid-flight
- * without triggering a webhook or client-side callback.
+ * MIGRATED: Uses RABTUL Payment Service instead of Razorpay
  */
 async function runStaleProcessingOrderSweeper(): Promise<void> {
   const lockKey = 'job:stale-processing-sweeper';
@@ -553,6 +544,8 @@ async function runStaleProcessingOrderSweeper(): Promise<void> {
     logger.info('[SWEEPER] stale-processing-sweeper skipped — lock held by another instance');
     return;
   }
+
+  const isPaymentServiceConfigured = !!INTERNAL_SERVICE_TOKEN;
 
   try {
     const staleOrders = await Order.find({
@@ -567,29 +560,23 @@ async function runStaleProcessingOrderSweeper(): Promise<void> {
 
     for (const order of staleOrders) {
       try {
-        // ISSUE-37 FIX: Before cancelling, check with Razorpay whether a payment was
-        // actually captured. A gateway session can die mid-flight after the customer
-        // pays but before the webhook arrives; cancelling here would lose the payment.
-        // If Razorpay confirms a captured payment, trigger fulfillment instead.
-        // If the Razorpay API is unreachable, skip this order and retry next cycle.
-        // IOrder.payment has transactionId; gateway order ID is in paymentGateway.gatewayOrderId
+        // ISSUE-37 FIX: Before cancelling, check with RABTUL Payment Service whether a payment was
+        // actually captured. If payment service confirms a captured payment, trigger fulfillment instead.
         const razorpayOrderId = order.paymentGateway?.gatewayOrderId;
         if (razorpayOrderId) {
           try {
-            if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+            if (!isPaymentServiceConfigured) {
               logger.warn(
-                '[SWEEPER] Razorpay keys not configured — cannot verify order status, skipping cancel for order',
+                '[SWEEPER] Payment service not configured — cannot verify order status, skipping cancel for order',
                 { orderId: String(order._id) },
               );
               continue;
             }
-            const Razorpay = require('razorpay');
-            const rz = new Razorpay({
-              key_id: process.env.RAZORPAY_KEY_ID,
-              key_secret: process.env.RAZORPAY_KEY_SECRET,
-            });
-            const rzpOrder = await rz.orders.fetch(razorpayOrderId);
-            if (rzpOrder?.status === 'paid') {
+
+            // MIGRATED: Use RABTUL Payment Service instead of Razorpay
+            const orderStatus = await fetchOrderStatus(razorpayOrderId);
+
+            if (orderStatus?.status === 'paid') {
               // Don't cancel — payment was captured. Trigger full fulfillment pipeline.
               logger.warn(
                 `[SWEEPER] Found paid but stuck order ${order.orderNumber} — triggering fulfillment instead of cancelling`,
@@ -597,8 +584,8 @@ async function runStaleProcessingOrderSweeper(): Promise<void> {
               );
               // Fetch payments to find the captured one, then run handlePaymentSuccess
               try {
-                const paymentsResponse = await rz.orders.fetchPayments(razorpayOrderId);
-                const capturedPayment = (paymentsResponse?.items ?? []).find((p: any) => p.status === 'captured');
+                const payments = await fetchOrderPayments(razorpayOrderId);
+                const capturedPayment = payments.find((p: any) => p.status === 'captured');
                 if (capturedPayment) {
                   await paymentService.handlePaymentSuccess(String(order._id), {
                     razorpay_payment_id: capturedPayment.id,
@@ -612,11 +599,11 @@ async function runStaleProcessingOrderSweeper(): Promise<void> {
               }
               continue; // Skip cancellation for this order
             }
-          } catch (rzErr: any) {
-            // Razorpay API unreachable — do NOT cancel; defer to next cycle
+          } catch (paymentServiceErr: any) {
+            // Payment service API unreachable — do NOT cancel; defer to next cycle
             logger.error(
-              `[SWEEPER] Razorpay check failed for order ${order.orderNumber} — deferring cancellation`,
-              rzErr?.message,
+              `[SWEEPER] Payment service check failed for order ${order.orderNumber} — deferring cancellation`,
+              paymentServiceErr?.message,
             );
             continue; // Skip this order and retry next cycle
           }
@@ -714,7 +701,6 @@ export function initializeOrderLifecycleJobs(): void {
   logger.info('  Order alert checks started (runs every 30 min)');
 
   // Stale processing order sweeper — every 15 minutes
-  // Releases reservedStock and cancels orders stuck in payment.status='processing' >30 min
   scheduleCronJob(
     '*/15 * * * *',
     async () => {

@@ -1,27 +1,27 @@
 /**
  * razorpayReconciliationJob.ts
  *
- * Runs every 15 minutes to detect orders that Razorpay has marked as paid
+ * Runs every 15 minutes to detect orders that have been paid
  * but whose app-side payment.status is still 'pending' or 'awaiting_payment'.
  *
- * This catches payments lost during Render cold-start webhook timeouts:
- * Razorpay fires a webhook, the service is sleeping, the 5-second timeout
- * expires, Razorpay retries with backoff and eventually gives up — leaving
+ * MIGRATED: All Razorpay API calls replaced with RABTUL Payment Service calls
+ *
+ * This catches payments lost during webhook timeouts:
+ * The payment service fires a webhook, the service is sleeping, the timeout
+ * expires, retries with backoff eventually give up — leaving
  * the order stuck in payment_pending while the user was already charged.
  *
  * Flow:
  *   1. Acquire a distributed lock (prevents concurrent runs on multi-pod deploys)
  *   2. Find orders with payment.status IN ['pending','awaiting_payment'] older
  *      than 10 minutes that have a paymentGateway.gatewayOrderId (i.e. a
- *      Razorpay order was actually created for them)
- *   3. For each such order, call razorpay.orders.fetch(gatewayOrderId)
- *   4. If Razorpay returns status === 'paid', fetch the captured payment via
- *      razorpay.orders.fetchPayments(gatewayOrderId)
+ *      payment was actually initiated)
+ *   3. For each such order, call RABTUL Payment Service to check status
+ *   4. If paid, fetch the captured payment details
  *   5. Update the order document to reflect the recovered payment
  *   6. Log a warning and send a Sentry alert for every recovery
  */
 
-import Razorpay from 'razorpay';
 import { createServiceLogger } from '../config/logger';
 import * as Sentry from '@sentry/node';
 import redisService from '../services/redisService';
@@ -34,26 +34,55 @@ const STUCK_THRESHOLD_MINUTES = 10;
 const BATCH_SIZE = 50;
 
 // ---------------------------------------------------------------------------
-// Lazy Razorpay instance — only created when env vars are present.
-// Lazily instantiated so a missing key in dev/test doesn't throw at module load.
+// RABTUL Payment Service Configuration
 // ---------------------------------------------------------------------------
 
-let _razorpay: Razorpay | null | undefined; // undefined = not yet checked
+const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || 'https://rez-payment-service.onrender.com';
+const INTERNAL_SERVICE_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || '';
 
-function getRazorpayInstance(): Razorpay | null {
-  if (_razorpay !== undefined) return _razorpay;
+/**
+ * Check if RABTUL Payment Service is configured
+ */
+function isPaymentServiceConfigured(): boolean {
+  return !!INTERNAL_SERVICE_TOKEN;
+}
 
-  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-    _razorpay = null;
-    return null;
-  }
-
-  _razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
+/**
+ * Fetch order status from RABTUL Payment Service
+ */
+async function fetchOrderStatus(gatewayOrderId: string): Promise<any> {
+  const response = await fetch(`${PAYMENT_SERVICE_URL}/api/payments/status/${gatewayOrderId}`, {
+    method: 'GET',
+    headers: {
+      'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+    },
   });
 
-  return _razorpay;
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`RABTUL Payment Service error: ${response.status} - ${error}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch payments for an order from RABTUL Payment Service
+ */
+async function fetchOrderPayments(gatewayOrderId: string): Promise<any> {
+  const response = await fetch(`${PAYMENT_SERVICE_URL}/api/payments/${gatewayOrderId}/payments`, {
+    method: 'GET',
+    headers: {
+      'X-Internal-Token': INTERNAL_SERVICE_TOKEN,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`RABTUL Payment Service error: ${response.status} - ${error}`);
+  }
+
+  return response.json();
 }
 
 // ---------------------------------------------------------------------------
@@ -72,10 +101,8 @@ export interface RazorpayReconciliationResult {
 // ---------------------------------------------------------------------------
 
 export async function runRazorpayReconciliation(): Promise<RazorpayReconciliationResult> {
-  const razorpay = getRazorpayInstance();
-
-  if (!razorpay) {
-    logger.warn('[RAZORPAY-RECON] Razorpay env vars not set — skipping reconciliation');
+  if (!isPaymentServiceConfigured()) {
+    logger.warn('[RAZORPAY-RECON] Payment service not configured — skipping reconciliation');
     return { checked: 0, recovered: 0, errors: [], skipped: true };
   }
 
@@ -98,7 +125,7 @@ export async function runRazorpayReconciliation(): Promise<RazorpayReconciliatio
 
     // Orders where:
     //  - payment has not been confirmed on our side
-    //  - a Razorpay order ID exists (payment flow was initiated)
+    //  - a payment order ID exists (payment flow was initiated)
     //  - the order is old enough that a webhook should have arrived by now
     const stuckOrders = await Order.find({
       'payment.status': { $in: ['pending', 'awaiting_payment'] },
@@ -117,32 +144,33 @@ export async function runRazorpayReconciliation(): Promise<RazorpayReconciliatio
       return { checked, recovered, errors };
     }
 
-    logger.info(`[RAZORPAY-RECON] Found ${checked} stuck order(s) to check against Razorpay`);
+    logger.info(`[RAZORPAY-RECON] Found ${checked} stuck order(s) to check against payment service`);
 
     for (const order of stuckOrders) {
       const gatewayOrderId = (order as any).paymentGateway?.gatewayOrderId as string | undefined;
       if (!gatewayOrderId) continue;
 
       try {
-        // Query Razorpay for the canonical order status
-        const rzpOrder = await (razorpay.orders.fetch(gatewayOrderId) as unknown as Promise<any>);
+        // Query payment service for the canonical order status
+        const orderStatus = await fetchOrderStatus(gatewayOrderId);
 
-        if (rzpOrder?.status !== 'paid') {
-          // Still unpaid on Razorpay's side — nothing to recover yet
-          logger.debug('[RAZORPAY-RECON] Order not yet paid on Razorpay', {
+        if (orderStatus?.status !== 'paid') {
+          // Still unpaid on payment service's side — nothing to recover yet
+          logger.debug('[RAZORPAY-RECON] Order not yet paid on payment service', {
             appOrderId: String((order as any)._id),
             gatewayOrderId,
-            rzpStatus: rzpOrder?.status,
+            status: orderStatus?.status,
           });
           continue;
         }
 
-        // Razorpay says paid — find the captured payment
-        const paymentsResponse = await (razorpay.orders.fetchPayments(gatewayOrderId) as unknown as Promise<any>);
-        const capturedPayment = paymentsResponse?.items?.find((p: any) => p.status === 'captured');
+        // Payment service says paid — find the captured payment
+        const paymentsResponse = await fetchOrderPayments(gatewayOrderId);
+        const payments = paymentsResponse?.items || paymentsResponse?.payments || [];
+        const capturedPayment = payments.find((p: any) => p.status === 'captured');
 
         if (!capturedPayment) {
-          logger.warn('[RAZORPAY-RECON] Razorpay order is "paid" but no captured payment found', {
+          logger.warn('[RAZORPAY-RECON] Payment service shows paid but no captured payment found', {
             appOrderId: String((order as any)._id),
             gatewayOrderId,
           });
@@ -154,7 +182,7 @@ export async function runRazorpayReconciliation(): Promise<RazorpayReconciliatio
           $set: {
             'payment.status': 'paid',
             'payment.transactionId': capturedPayment.id,
-            'payment.paidAt': new Date(capturedPayment.created_at * 1000),
+            'payment.paidAt': new Date(capturedPayment.created_at * 1000 || Date.now()),
             'paymentGateway.gatewayPaymentId': capturedPayment.id,
             'paymentGateway.recoveredByReconciliation': true,
             'paymentGateway.recoveredAt': new Date(),
@@ -220,7 +248,7 @@ export async function runRazorpayReconciliation(): Promise<RazorpayReconciliatio
         errors.push(msg);
       }
 
-      // Throttle Razorpay API calls — their rate limit is 60 req/min per key
+      // Throttle API calls
       await new Promise<void>((resolve) => setTimeout(resolve, 150));
     }
   } catch (err: any) {
