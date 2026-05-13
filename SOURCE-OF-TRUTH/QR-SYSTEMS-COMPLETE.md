@@ -790,8 +790,29 @@ const validateQRToken = (token: string, type: string): boolean => {
 | Room QR | `room.rez.money/{hotelId}/{roomId}` | ✅ Production |
 | Ads QR | `adsqr.rez.money/c/{campaignId}` | ✅ Production |
 | Verify QR | `verify.rez.money/s/{serial}` | 📋 Planned |
-| Creator QR | `creator.rez.money/{creatorId}` | 📋 Planned |
+| Creator QR | `creators.rez.money/{username}` | ✅ Production |
 
 ---
 
-**Last Updated:** 2026-05-05
+## CREATOR QR DETAILS
+
+**Location:** `REZ-Consumer/rez-creator-qr-service`
+**Port:** 4008
+**Database:** MongoDB `creator-qr`
+**Cache:** Redis
+
+### Features Implemented
+- Creator profiles with tier system
+- 4 listing types (Service, Consulting, Booking, Promotion, Product)
+- Booking system with time slots
+- Promotion/collaboration workflow
+- QR code generation (Creator, Listing, Booking)
+- Payment processing with escrow
+- ReZ ecosystem integrations (Wallet, Payment, Chat, Mind, Karma, BuzzLocal)
+
+### Documentation
+- Full spec: `SOURCE-OF-TRUTH/CREATOR-QR-COMPLETE.md`
+
+---
+
+**Last Updated:** 2026-05-12

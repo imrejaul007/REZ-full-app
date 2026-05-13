@@ -1,5 +1,28 @@
 # Security Checklist
 
+> **ReZ Platform Version:** 1.0.0
+> **Last Updated:** May 12, 2026
+> **Based on:** Claude Code Security Audit
+
+---
+
+## Table of Contents
+
+1. [Pre-Launch Security Checks](#1-pre-launch-security-checks)
+2. [Authentication & Authorization](#2-authentication--authorization)
+3. [Payment Security](#3-payment-security)
+4. [WebSocket Security](#4-websocket-security)
+5. [API Key Rotation Steps](#5-api-key-rotation-steps)
+6. [Secret Management](#6-secret-management)
+7. [CORS Configuration](#7-cors-configuration)
+8. [Rate Limiting](#8-rate-limiting)
+9. [Input Validation](#9-input-validation)
+10. [SQL Injection Prevention](#10-sql-injection-prevention)
+11. [XSS Prevention](#11-xss-prevention)
+12. [Summary Checklist](#summary-checklist)
+
+---
+
 ## 1. Pre-Launch Security Checks
 
 - [ ] **Environment Variables**
@@ -40,7 +63,189 @@
 
 ---
 
-## 2. API Key Rotation Steps
+## 2. Authentication & Authorization
+
+### JWT Implementation
+
+| Check | Status | Implementation |
+|-------|--------|----------------|
+| Algorithm constraint set | ✅ Required | `algorithms: ['HS256']` in jwt.verify() |
+| Token expiry set | ✅ Required | Access: 15min, Refresh: 7 days |
+| Refresh token rotation | ✅ Required | New refresh token on each use |
+| Token blacklist on logout | ✅ Required | Redis-based |
+
+```typescript
+// CORRECT - Always specify algorithms
+const decoded = jwt.verify(token, secret, {
+  algorithms: ['HS256']  // Prevents alg:none attacks
+});
+
+// WRONG - Never omit algorithms
+jwt.verify(token, secret);  // ❌ Vulnerable
+```
+
+**Location:** `RABTUL-Technologies/rez-auth-service/src/middleware/auth.ts`
+
+### WebSocket Authentication
+
+| Check | Status | Implementation |
+|-------|--------|----------------|
+| JWT validation on connect | ✅ | Validates HS256/384/512 |
+| Constant-time token comparison | ✅ | Uses timingSafeEqual |
+| Connection reject on invalid | ✅ | Returns 1008 close code |
+| Internal service tokens | ✅ | X-Internal-Token header |
+
+**Location:** `REZ-Intelligence/rez-intent-graph/src/websocket/server.ts`
+
+### MFA/TOTP Requirements
+
+| Check | Status | Implementation |
+|-------|--------|----------------|
+| TOTP RFC 6238 compliant | ✅ | Uses HMAC-SHA1 |
+| Time window tolerance | ✅ | ±1 interval (30 seconds) |
+| Backup codes | ✅ | 10 one-time codes |
+| Common PIN detection | ✅ | Blocks 1234, 0000, etc. |
+| Account lockout | ✅ | After 5 failed attempts |
+
+**Location:** `RABTUL-Technologies/rez-auth-service/src/routes/mfaRoutes.ts`
+
+### Internal Service Authentication
+
+```typescript
+// All internal service calls must include
+X-Internal-Token: <service-specific-token>
+
+// Tokens stored in
+INTERNAL_SERVICE_TOKENS_JSON={"service-name":"token"}
+```
+
+**Location:** `RABTUL-Technologies/rez-auth-service/src/middleware/internalAuth.ts`
+
+---
+
+## 3. Payment Security
+
+### Webhook Security Checklist
+
+| Check | Status | Implementation |
+|-------|--------|----------------|
+| HMAC-SHA256 verification | ✅ | `webhookService.ts` |
+| Event deduplication | ✅ | Redis 24-hour window |
+| Amount verification | ✅ | Against Razorpay API |
+| Replay prevention | ✅ | Redis nonce check |
+| State FSM validation | ✅ | Before processing |
+| MongoDB transactions | ✅ | Atomic updates |
+
+**Location:** `RABTUL-Technologies/rez-payment-service/src/routes/paymentRoutes.ts`
+
+### Webhook Verification Flow
+
+```typescript
+async function verifyWebhook(req, res) {
+  // 1. Extract signature
+  const signature = req.headers['x-razorpay-signature'];
+
+  // 2. Verify HMAC-SHA256
+  const expected = crypto
+    .createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
+    .update(JSON.stringify(req.body))
+    .digest('hex');
+
+  if (!crypto.timingSafeEqual(
+    Buffer.from(expected, 'hex'),
+    Buffer.from(signature, 'hex')
+  )) {
+    return res.status(400).send('Invalid signature');
+  }
+
+  // 3. Check Redis for deduplication
+  const eventId = req.body.payload.payment.entity.id;
+  const alreadyProcessed = await redis.set(
+    `webhook:event:${eventId}`, '1', 'EX', 86400, 'NX'
+  );
+  if (!alreadyProcessed) {
+    return res.status(200).send('Already processed');
+  }
+
+  // 4. Validate state transition
+  // 5. Process with MongoDB transaction
+}
+```
+
+### Payment State Machine
+
+Valid transitions enforced in `config/paymentTransitions.ts`:
+
+```
+PENDING → AUTHORIZED → CAPTURED → REFUNDED
+    ↓          ↓           ↓
+CANCELLED  CANCELLED   CANCELLED
+```
+
+### Idempotency Keys
+
+| Operation | Key Pattern | TTL |
+|-----------|------------|-----|
+| Payment init | `pay:idempotency:{key}` | 24 hours |
+| Payment capture | `pay:nonce:{razorpayPaymentId}` | 25 hours |
+| Webhook event | `webhook:event:{eventId}` | 24 hours |
+| Wallet credit | `wallet:credit:{userId}:{idempotencyKey}` | 24 hours |
+
+### Fail-Closed Behavior
+
+```typescript
+// If Redis is unavailable, reject payment operations
+const redis = new Redis(REDIS_URL);
+
+async function processPayment(paymentData) {
+  try {
+    // Try to check replay
+    const isReplayed = await isReplayedPaymentId(razorpayPaymentId);
+    if (isReplayed) {
+      throw new Error('Payment already processed');
+    }
+  } catch (err) {
+    // Redis error = fail closed for payments
+    logger.error('[CRITICAL] Redis unavailable for payment', { err });
+    throw new Error('Service temporarily unavailable');
+  }
+}
+```
+
+---
+
+## 4. WebSocket Security
+
+### Connection Validation
+
+| Check | Status | Implementation |
+|-------|--------|----------------|
+| JWT validation | ✅ Fixed | Now validates properly |
+| API key validation | ✅ | timingSafeEqual |
+| Internal token validation | ✅ | timingSafeEqual |
+| Bearer token fallback | ⚠️ | Dev mode only without JWT_SECRET |
+
+### WebSocket Security Checklist
+
+- [ ] JWT_SECRET_FOR_WS configured in production
+- [ ] All tokens use timingSafeEqual comparison
+- [ ] Connection rejected returns 1008 close code
+- [ ] Heartbeat cleans up stale connections (60s threshold)
+- [ ] Message validation with try/catch for JSON.parse
+
+### Environment Variables Required
+
+```bash
+# Required for WebSocket production
+JWT_SECRET_FOR_WS=<production-jwt-secret>
+
+# Optional - uses JWT_SECRET if not set
+JWT_SECRET=<production-jwt-secret>
+```
+
+---
+
+## 5. API Key Rotation Steps
 
 ### Rotation Process
 
@@ -82,7 +287,7 @@
 
 ---
 
-## 3. Secret Management
+## 6. Secret Management
 
 ### Storage Principles
 
@@ -118,7 +323,7 @@
 
 ---
 
-## 4. CORS Configuration
+## 7. CORS Configuration
 
 ### Development (Development Only)
 
@@ -175,7 +380,7 @@ res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 
 ---
 
-## 5. Rate Limiting
+## 8. Rate Limiting
 
 ### Implementation
 
@@ -235,7 +440,7 @@ res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 
 ---
 
-## 6. Input Validation
+## 9. Input Validation
 
 ### Client-Side Validation (UI Only)
 
@@ -289,7 +494,7 @@ app.post('/api/register', async (req, res) => {
 
 ---
 
-## 7. SQL Injection Prevention
+## 10. SQL Injection Prevention
 
 ### Always Use Parameterized Queries
 
@@ -342,7 +547,7 @@ const prisma = new PrismaClient({
 
 ---
 
-## 8. XSS Prevention
+## 11. XSS Prevention
 
 ### Types of XSS
 

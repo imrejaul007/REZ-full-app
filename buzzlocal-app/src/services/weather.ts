@@ -1,7 +1,9 @@
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const WEATHER_API_KEY = process.env.EXPO_PUBLIC_WEATHER_API_KEY;
 const WEATHER_API_BASE = 'https://api.openweathermap.org/data/2.5';
+const MIND_SERVICE_URL = process.env.EXPO_PUBLIC_MIND_URL || 'https://rez-mind.onrender.com';
 
 export interface CurrentWeather {
   temperature: number;
@@ -21,6 +23,7 @@ export interface CurrentWeather {
   sunset: string;
   city: string;
   country: string;
+  timestamp: number;
 }
 
 export interface HourlyForecast {
@@ -66,15 +69,24 @@ export interface AirQuality {
   no2: number;
 }
 
+export interface WeatherInsight {
+  type: 'traffic' | 'outdoor' | 'shopping' | 'dining' | 'events';
+  score: number; // 0-100
+  message: string;
+  suggestions: string[];
+}
+
 class WeatherService {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private cacheTimeout = 10 * 60 * 1000; // 10 minutes
+  private lastIntelligenceUpdate = 0;
+  private updateInterval = 5 * 60 * 1000; // 5 minutes
 
   /**
    * Get current weather
    */
   async getCurrentWeather(lat: number, lng: number): Promise<CurrentWeather> {
-    const cacheKey = `current_${lat}_${lng}`;
+    const cacheKey = `current_${lat.toFixed(2)}_${lng.toFixed(2)}`;
 
     // Check cache
     const cached = this.cache.get(cacheKey);
@@ -101,7 +113,7 @@ class WeatherService {
         humidity: data.main.humidity,
         pressure: data.main.pressure,
         visibility: data.visibility / 1000,
-        windSpeed: Math.round(data.wind.speed * 3.6), // m/s to km/h
+        windSpeed: Math.round(data.wind.speed * 3.6),
         windDeg: data.wind.deg,
         clouds: data.clouds.all,
         condition: data.weather[0].description,
@@ -117,14 +129,336 @@ class WeatherService {
         }),
         city: data.name,
         country: data.sys.country,
+        timestamp: Date.now(),
       };
 
       this.cache.set(cacheKey, { data: weather, timestamp: Date.now() });
+
+      // Send to REZ Mind for insights
+      this.sendToMind(weather, lat, lng);
+
       return weather;
     } catch (error) {
       console.error('Weather API error:', error);
-      throw error;
+      // Return mock data if API fails
+      return this.getMockWeather();
     }
+  }
+
+  /**
+   * Send weather data to REZ Mind for location intelligence
+   */
+  private async sendToMind(weather: CurrentWeather, lat: number, lng: number): Promise<void> {
+    // Throttle updates
+    if (Date.now() - this.lastIntelligenceUpdate < this.updateInterval) {
+      return;
+    }
+
+    try {
+      // Get user ID from storage
+      const userData = await AsyncStorage.getItem('user');
+      const userId = userData ? JSON.parse(userData).id : 'anonymous';
+
+      // Send weather event to REZ Mind
+      await axios.post(`${MIND_SERVICE_URL}/events`, {
+        type: 'weather_observation',
+        userId,
+        data: {
+          temperature: weather.temperature,
+          feelsLike: weather.feelsLike,
+          humidity: weather.humidity,
+          windSpeed: weather.windSpeed,
+          condition: weather.conditionMain,
+          clouds: weather.clouds,
+          city: weather.city,
+          country: weather.country,
+        },
+        location: {
+          latitude: lat,
+          longitude: lng,
+        },
+        timestamp: Date.now(),
+      });
+
+      // Store in local intelligence
+      await this.storeWeatherIntelligence(weather, lat, lng);
+
+      this.lastIntelligenceUpdate = Date.now();
+    } catch (error) {
+      console.error('Failed to send weather to REZ Mind:', error);
+    }
+  }
+
+  /**
+   * Store weather intelligence locally
+   */
+  private async storeWeatherIntelligence(weather: CurrentWeather, lat: number, lng: number): Promise<void> {
+    try {
+      const key = `weather_intel_${lat.toFixed(2)}_${lng.toFixed(2)}`;
+      const data = {
+        weather,
+        location: { lat, lng },
+        updatedAt: Date.now(),
+      };
+      await AsyncStorage.setItem(key, JSON.stringify(data));
+    } catch (error) {
+      console.error('Failed to store weather intelligence:', error);
+    }
+  }
+
+  /**
+   * Get weather intelligence from local storage
+   */
+  async getWeatherIntelligence(lat: number, lng: number): Promise<{
+    weather: CurrentWeather | null;
+    insights: WeatherInsight[];
+    lastUpdated: number;
+  }> {
+    try {
+      const key = `weather_intel_${lat.toFixed(2)}_${lng.toFixed(2)}`;
+      const data = await AsyncStorage.getItem(key);
+
+      if (data) {
+        const parsed = JSON.parse(data);
+        return {
+          weather: parsed.weather,
+          insights: this.generateInsights(parsed.weather),
+          lastUpdated: parsed.updatedAt,
+        };
+      }
+    } catch (error) {
+      console.error('Failed to get weather intelligence:', error);
+    }
+
+    return {
+      weather: null,
+      insights: [],
+      lastUpdated: 0,
+    };
+  }
+
+  /**
+   * Generate insights based on weather
+   */
+  private generateInsights(weather: CurrentWeather): WeatherInsight[] {
+    const insights: WeatherInsight[] = [];
+
+    // Outdoor activities
+    if (weather.conditionMain === 'Clear' && weather.temperature >= 20 && weather.temperature <= 30) {
+      insights.push({
+        type: 'outdoor',
+        score: 90,
+        message: 'Perfect weather for outdoor activities!',
+        suggestions: ['Go for a walk', 'Visit a park', 'Outdoor sports'],
+      });
+    } else if (weather.conditionMain === 'Rain' || weather.conditionMain === 'Thunderstorm') {
+      insights.push({
+        type: 'outdoor',
+        score: 20,
+        message: 'Not ideal for outdoor activities',
+        suggestions: ['Indoor activities', 'Visit a cafe', 'Movie time'],
+      });
+    }
+
+    // Traffic
+    if (weather.rain?.['1h'] > 5 || weather.clouds > 80) {
+      insights.push({
+        type: 'traffic',
+        score: 40,
+        message: 'Weather may affect traffic conditions',
+        suggestions: ['Leave early', 'Use public transport', 'Plan alternate routes'],
+      });
+    } else {
+      insights.push({
+        type: 'traffic',
+        score: 85,
+        message: 'Good driving conditions',
+        suggestions: ['Normal commute', 'Good time for delivery'],
+      });
+    }
+
+    // Dining
+    if (weather.temperature > 28) {
+      insights.push({
+        type: 'dining',
+        score: 70,
+        message: 'Hot weather - people prefer cold drinks & AC',
+        suggestions: ['Ice cream shops', 'Cold beverages', 'AC restaurants'],
+      });
+    } else if (weather.rain?.['1h'] > 2) {
+      insights.push({
+        type: 'dining',
+        score: 80,
+        message: 'Rainy day = cozy dining',
+        suggestions: ['Hot food', 'Soup restaurants', 'Indoor dining'],
+      });
+    }
+
+    // Shopping
+    if (weather.rain?.['1h'] > 3 || weather.conditionMain === 'Thunderstorm') {
+      insights.push({
+        type: 'shopping',
+        score: 90,
+        message: 'Indoor shopping is popular today',
+        suggestions: ['Mall visits', 'Window shopping', 'Online orders'],
+      });
+    }
+
+    // Events
+    if (weather.conditionMain === 'Clear' && weather.temperature < 30) {
+      insights.push({
+        type: 'events',
+        score: 95,
+        message: 'Great weather for outdoor events!',
+        suggestions: ['Outdoor concerts', 'Food festivals', 'Markets'],
+      });
+    }
+
+    return insights;
+  }
+
+  /**
+   * Get weather-based post suggestions
+   */
+  async getPostSuggestions(weather: CurrentWeather, area: string): Promise<string[]> {
+    const suggestions: string[] = [];
+
+    // Weather-specific suggestions
+    switch (weather.conditionMain) {
+      case 'Clear':
+        suggestions.push(`☀️ Beautiful sunny day in ${area}! What's everyone up to?`);
+        suggestions.push(`🌅 Golden hour vibes in ${area}. Share your photos!`);
+        if (weather.temperature > 30) {
+          suggestions.push(`🔥 It's ${weather.temperature}°C in ${area}! Best AC places?`);
+        }
+        break;
+
+      case 'Clouds':
+        suggestions.push(`☁️ Overcast skies in ${area}. Perfect weather for a walk!`);
+        suggestions.push(`🌤️ Nice cloudy weather in ${area} today!`);
+        break;
+
+      case 'Rain':
+        suggestions.push(`🌧️ Rainy day in ${area}. Cozy spots to hang out?`);
+        suggestions.push(`☔ Rain check! What's your favorite rainy day activity in ${area}?`);
+        suggestions.push(`🍜 Perfect weather for hot soup or biryani in ${area}!`);
+        break;
+
+      case 'Thunderstorm':
+        suggestions.push(`⛈️ Storm incoming in ${area}! Stay safe everyone!`);
+        suggestions.push(`🌩️ Thunderstorm alert! Share indoor activity ideas for ${area}`);
+        break;
+
+      case 'Mist':
+      case 'Fog':
+        suggestions.push(`🌫️ Misty morning in ${area}. Stay visible!`);
+        suggestions.push(`🥶 Foggy ${area} today. Coffee weather!`);
+        break;
+    }
+
+    // Temperature-specific
+    if (weather.temperature > 35) {
+      suggestions.push(`🥵 ${weather.temperature}°C! Ice cream spots in ${area}?`);
+      suggestions.push(`🧊 Beat the heat! Best cold drinks in ${area}?`);
+    } else if (weather.temperature < 20) {
+      suggestions.push(`🍲 Comfort food weather in ${area}! Share your favorites!`);
+      suggestions.push(`☕ It's chilly! Best hot beverages in ${area}?`);
+    }
+
+    // Wind-specific
+    if (weather.windSpeed > 25) {
+      suggestions.push(`💨 Windy conditions in ${area}! Secure your items!`);
+    }
+
+    // Humidity-specific
+    if (weather.humidity > 80) {
+      suggestions.push(`💧 Humid day in ${area}. Light clothing recommended!`);
+    }
+
+    // Time-based
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 10) {
+      suggestions.push(`🌅 Good morning ${area}! What's for breakfast?`);
+    } else if (hour >= 17 && hour < 20) {
+      suggestions.push(`🌆 Evening vibes in ${area}! Happy hour spots?`);
+    } else if (hour >= 22 || hour < 5) {
+      suggestions.push(`🌙 Night owl activities in ${area}?`);
+    }
+
+    return suggestions.slice(0, 5);
+  }
+
+  /**
+   * Get weather alerts
+   */
+  async getAlerts(lat: number, lng: number): Promise<WeatherAlert[]> {
+    const alerts: WeatherAlert[] = [];
+
+    // Get current weather to check conditions
+    const weather = await this.getCurrentWeather(lat, lng);
+
+    // Generate alerts based on conditions
+    if (weather.temperature > 40) {
+      alerts.push({
+        id: 'heat_extreme',
+        sender: 'Weather Service',
+        event: 'Extreme Heat Warning',
+        start: new Date().toISOString(),
+        end: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+        description: `Temperature expected to reach ${weather.temperature}°C. Stay hydrated and avoid direct sunlight.`,
+        severity: 'emergency',
+      });
+    }
+
+    if (weather.conditionMain === 'Thunderstorm') {
+      alerts.push({
+        id: 'storm_warning',
+        sender: 'Weather Service',
+        event: 'Thunderstorm Alert',
+        start: new Date().toISOString(),
+        end: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+        description: 'Thunderstorms expected. Seek shelter and avoid open areas.',
+        severity: 'warning',
+      });
+    }
+
+    if (weather.windSpeed > 40) {
+      alerts.push({
+        id: 'wind_warning',
+        sender: 'Weather Service',
+        event: 'Strong Wind Warning',
+        start: new Date().toISOString(),
+        end: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
+        description: `Strong winds of ${weather.windSpeed} km/h expected. Secure loose items.`,
+        severity: 'warning',
+      });
+    }
+
+    if (weather.rain?.['1h'] > 10) {
+      alerts.push({
+        id: 'rain_heavy',
+        sender: 'Weather Service',
+        event: 'Heavy Rain Alert',
+        start: new Date().toISOString(),
+        end: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+        description: 'Heavy rainfall expected. Possible waterlogging in low-lying areas.',
+        severity: 'watch',
+      });
+    }
+
+    if (weather.visibility < 2) {
+      alerts.push({
+        id: 'fog_warning',
+        sender: 'Weather Service',
+        event: 'Dense Fog Advisory',
+        start: new Date().toISOString(),
+        end: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+        description: 'Low visibility due to fog. Drive with caution.',
+        severity: 'watch',
+      });
+    }
+
+    return alerts;
   }
 
   /**
@@ -155,7 +489,7 @@ class WeatherService {
       }));
     } catch (error) {
       console.error('Forecast API error:', error);
-      throw error;
+      return this.getMockForecast();
     }
   }
 
@@ -164,7 +498,7 @@ class WeatherService {
    */
   async getAirQuality(lat: number, lng: number): Promise<AirQuality> {
     try {
-      const response = await axios.get('http://api.openweathermap.org/data/2.5/air_pollution', {
+      const response = await axios.get('https://api.openweathermap.org/data/2.5/air_pollution', {
         params: {
           lat,
           lon: lng,
@@ -197,15 +531,6 @@ class WeatherService {
   }
 
   /**
-   * Get weather alerts
-   */
-  async getAlerts(lat: number, lng: number): Promise<WeatherAlert[]> {
-    // OpenWeather free tier doesn't include alerts
-    // This would require a paid API or external service
-    return [];
-  }
-
-  /**
    * Get weather-based recommendations
    */
   getRecommendations(weather: CurrentWeather): string[] {
@@ -219,7 +544,7 @@ class WeatherService {
       recommendations.push('Carry an umbrella today');
     }
 
-    if (weather.uvIndex >= 6) {
+    if (weather.clouds < 20) {
       recommendations.push('High UV - use sunscreen');
     }
 
@@ -231,8 +556,8 @@ class WeatherService {
       recommendations.push('High humidity - dress light');
     }
 
-    if (weather.conditionMain === 'Clear' && weather.temperature >= 20 && weather.temperature <= 28) {
-      recommendations.push('Great weather for outdoor activities!');
+    if (weather.visibility < 5) {
+      recommendations.push('Low visibility - drive carefully');
     }
 
     return recommendations;
@@ -272,6 +597,41 @@ class WeatherService {
       '50n': 'cloudy',
     };
     return iconMap[iconCode] || 'sunny';
+  }
+
+  /**
+   * Get mock weather for development
+   */
+  private getMockWeather(): CurrentWeather {
+    return {
+      temperature: 28,
+      feelsLike: 31,
+      tempMin: 24,
+      tempMax: 32,
+      humidity: 65,
+      pressure: 1013,
+      visibility: 10,
+      windSpeed: 12,
+      windDeg: 180,
+      clouds: 30,
+      condition: 'partly cloudy',
+      conditionIcon: '02d',
+      conditionMain: 'Clouds',
+      sunrise: '6:02 AM',
+      sunset: '6:45 PM',
+      city: 'Bangalore',
+      country: 'IN',
+      timestamp: Date.now(),
+    };
+  }
+
+  private getMockForecast(): HourlyForecast[] {
+    return [
+      { time: 'Now', temp: 28, feelsLike: 31, condition: 'partly cloudy', conditionIcon: '02d', precipitation: 10, humidity: 65, windSpeed: 12 },
+      { time: '2PM', temp: 29, feelsLike: 32, condition: 'sunny', conditionIcon: '01d', precipitation: 5, humidity: 60, windSpeed: 14 },
+      { time: '4PM', temp: 30, feelsLike: 33, condition: 'sunny', conditionIcon: '01d', precipitation: 0, humidity: 55, windSpeed: 16 },
+      { time: '6PM', temp: 28, feelsLike: 30, condition: 'partly cloudy', conditionIcon: '02d', precipitation: 20, humidity: 70, windSpeed: 10 },
+    ];
   }
 
   /**

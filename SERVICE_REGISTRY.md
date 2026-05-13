@@ -37,7 +37,7 @@
 | **4016** | Profile Service | rez-profile-service | ✓ | - |
 | **4017** | Recommendation Engine | rez-recommendation-engine | ✓ | - |
 | **4018** | DOOH Service | rez-dooh-service | ✓ | - |
-| **4019** | - | (reserved) | - | - |
+| **4019** | Creator QR | rez-creator-qr | ✓ | - |
 | **4020** | Intelligence Hub | rez-intelligence-hub | ✓ | ✓ |
 | **4021** | AD AI | rez-ad-ai | ✓ | - |
 | **4022** | - | (reserved) | - | - |

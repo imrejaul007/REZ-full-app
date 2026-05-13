@@ -13,13 +13,22 @@ import { connectRedis, redis } from './config/redis';
 import { webhookRoutes } from './routes/webhook.routes';
 import { deliveryRoutes } from './routes/delivery.routes';
 import { WebhookService } from './services/WebhookService';
+import { authMiddleware, rateLimitMiddleware, requestIdMiddleware, errorHandler, ALLOWED_ORIGINS } from './middleware/auth';
 
 const app = express();
 const PORT = process.env.PORT || 4034;
 
 // Middleware
+app.use(requestIdMiddleware);
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: ALLOWED_ORIGINS,
+  credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Internal-Token', 'X-Request-Id'],
+  maxAge: 86400,
+}));
+app.use(rateLimitMiddleware);
 app.use(express.json({ limit: '10mb' }));
 
 // Initialize service
@@ -46,6 +55,9 @@ app.get('/ready', async (req, res) => {
   }
 });
 
+// Apply authentication to API routes
+app.use('/api', authMiddleware);
+
 // Routes
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/deliveries', deliveryRoutes);
@@ -57,10 +69,7 @@ app.get('/api/stats', async (req, res) => {
 });
 
 // Error handler
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Webhook Service Error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
+app.use(errorHandler);
 
 async function start() {
   try {

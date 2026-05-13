@@ -115,7 +115,10 @@ BUZZLOCAL_WEATHER=http://localhost:4014
 
 ## Do App
 
-**AI-powered chat commerce app** - The conversational interface for the ReZ ecosystem.
+**AI-powered chat commerce app** - The conversational interface for the ReZ ecosystem with personalized style recommendations.
+
+### Version
+**3.0.0** (May 13, 2026)
 
 ### Location
 - **Frontend**: `REZ-Consumer/do-app/` (Expo/React Native)
@@ -126,8 +129,19 @@ BUZZLOCAL_WEATHER=http://localhost:4014
 - [SECURITY.md](REZ-Consumer/do-app/do-backend/SECURITY.md) - Security rules
 - [SECURITY-AUDIT.md](REZ-Consumer/do-app/SECURITY-AUDIT.md) - Vulnerability audit
 - [DEPLOYMENT.md](REZ-Consumer/do-app/DEPLOYMENT.md) - Deployment checklist
+- [REZ-MIND-INTEGRATION.md](REZ-Consumer/do-app/REZ-MIND-INTEGRATION.md) - ReZ Mind integration guide
 - [DO-APP-SPEC.md](docs/DO-APP-SPEC.md) - Full specification
 - [DO-TECHNICAL-INTEGRATION.md](docs/DO-TECHNICAL-INTEGRATION.md) - API details
+
+### New in v3.0
+- Style preferences onboarding
+- Style Advisor chat mode
+- "For You" personalized section
+- Trend predictions API
+- Avatar upload
+- Rich push notifications
+- WebSocket client
+- Notifications API route
 
 ### Service URLs
 
@@ -162,12 +176,24 @@ DO_WS=ws://localhost:3000/stream
 | POST | `/auth/logout` | JWT | Logout |
 | POST | `/auth/refresh` | Public | Refresh token |
 | POST | `/do/chat/message` | JWT | AI chat |
+| GET | `/do/chat/history` | JWT | Chat history |
 | GET | `/discovery` | Optional | Search venues |
 | GET | `/discovery/trending` | Optional | Trending |
+| GET | `/discovery/trends` | Optional | AI predictions |
+| GET | `/discovery/nearby` | Optional | Nearby |
+| GET | `/discovery/mood/:mood` | Optional | Mood discovery |
 | GET | `/wallet` | JWT | Balance |
 | POST | `/wallet/debit` | JWT | Deduct (idempotent) |
 | POST | `/wallet/credit` | JWT | Add (idempotent) |
+| GET | `/wallet/karma` | JWT | Karma status |
 | GET | `/bookings` | JWT | User bookings |
+| POST | `/bookings` | JWT | Create booking |
+| GET | `/profile` | JWT | Full profile |
+| PATCH | `/profile/style-preferences` | JWT | Style prefs |
+| POST | `/notifications/register-token` | JWT | Push token |
+| GET | `/notifications/preferences` | JWT | Notif prefs |
+| GET | `/do/complaints` | JWT | List complaints |
+| POST | `/do/complaints` | JWT | Create complaint |
 
 ### Key Features
 - [x] AI chat interface
@@ -180,6 +206,14 @@ DO_WS=ws://localhost:3000/stream
 - [x] Idempotent transactions
 - [x] Rate limiting
 - [x] Input validation (Zod)
+- [x] Style preferences onboarding
+- [x] Style Advisor chat mode
+- [x] "For You" personalized section
+- [x] Avatar upload
+- [x] Rich push notifications
+- [x] Trend predictions
+- [x] Complaints management
+- [x] Notifications API
 
 ---
 
