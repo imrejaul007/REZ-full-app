@@ -46,6 +46,7 @@
 | buzzlocal-notification-service | 4011 | Push notifications via Expo |
 | buzzlocal-realtime-service | 4012 | WebSocket real-time updates |
 | buzzlocal-payment-service | 4013 | Payments via Razorpay |
+| buzzlocal-weather-service | 4014 | Weather data, insights, REZ Mind |
 
 ### Service URLs
 
@@ -59,6 +60,7 @@ BUZZLOCAL_INTELLIGENCE=https://buzzlocal-intelligence.onrender.com
 BUZZLOCAL_NOTIFICATIONS=https://buzzlocal-notifications.onrender.com
 BUZZLOCAL_REALTIME=https://buzzlocal-realtime.onrender.com
 BUZZLOCAL_PAYMENT=https://buzzlocal-payment.onrender.com
+BUZZLOCAL_WEATHER=https://buzzlocal-weather.onrender.com
 ```
 
 #### Development
@@ -71,6 +73,7 @@ BUZZLOCAL_INTELLIGENCE=http://localhost:4010
 BUZZLOCAL_NOTIFICATIONS=http://localhost:4011
 BUZZLOCAL_REALTIME=http://localhost:4012
 BUZZLOCAL_PAYMENT=http://localhost:4013
+BUZZLOCAL_WEATHER=http://localhost:4014
 ```
 
 ### API Endpoints
@@ -104,7 +107,8 @@ BUZZLOCAL_PAYMENT=http://localhost:4013
 - **Post Types**: General, Event, Alert, Place, Deal, Poll
 - **Coin Rewards**: 15-50 coins per action
 - **Gamification**: Badges, streaks, leaderboards
-- **Weather**: Real-time weather, forecasts, air quality
+- **Weather**: Real-time weather, forecasts, air quality, alerts, post suggestions
+- **Weather Intelligence**: Weather data feeds REZ Mind for location insights
 - **REZ Mind**: All actions tracked for AI training
 
 ---
