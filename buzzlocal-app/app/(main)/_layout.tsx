@@ -58,6 +58,15 @@ export default function MainLayout() {
         }}
       />
       <Tabs.Screen
+        name="weather"
+        options={{
+          tabBarLabel: 'Weather',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="partly-sunny" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="create"
         options={{
           tabBarLabel: '',

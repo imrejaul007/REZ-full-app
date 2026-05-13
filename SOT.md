@@ -104,6 +104,7 @@ BUZZLOCAL_PAYMENT=http://localhost:4013
 - **Post Types**: General, Event, Alert, Place, Deal, Poll
 - **Coin Rewards**: 15-50 coins per action
 - **Gamification**: Badges, streaks, leaderboards
+- **Weather**: Real-time weather, forecasts, air quality
 - **REZ Mind**: All actions tracked for AI training
 
 ---
@@ -119,6 +120,8 @@ BUZZLOCAL_PAYMENT=http://localhost:4013
 ### Documentation
 - [CLAUDE.md](REZ-Consumer/do-app/CLAUDE.md) - Development guidelines
 - [SECURITY.md](REZ-Consumer/do-app/do-backend/SECURITY.md) - Security rules
+- [SECURITY-AUDIT.md](REZ-Consumer/do-app/SECURITY-AUDIT.md) - Vulnerability audit
+- [DEPLOYMENT.md](REZ-Consumer/do-app/DEPLOYMENT.md) - Deployment checklist
 - [DO-APP-SPEC.md](docs/DO-APP-SPEC.md) - Full specification
 - [DO-TECHNICAL-INTEGRATION.md](docs/DO-TECHNICAL-INTEGRATION.md) - API details
 
@@ -173,8 +176,6 @@ DO_WS=ws://localhost:3000/stream
 - [x] Idempotent transactions
 - [x] Rate limiting
 - [x] Input validation (Zod)
-
----
 
 ---
 
